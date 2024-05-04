@@ -15,16 +15,16 @@ def translate(img, dx, dy):
     registered_img = transform.warp(img, tform.inverse)
     return registered_img
 
-def prepare_img_for_detection(img, header, ref_exp_time, saturation_value):
+def prepare_img_for_detection(img, header, clip_exp_time, saturation_value):
     if len(img.shape) == 3:
         # Convert to grayscale
         img = img.mean(axis=2)
     if "PEDESTAL" in header:
         # Remove pedestal
         img = img - header["PEDESTAL"] / 65535
-    if header["EXPTIME"] < ref_exp_time:
+    if header["EXPTIME"] < clip_exp_time:
         # Artificially clip short exposures to facilitate edge detection
-        img *= ref_exp_time/header["EXPTIME"]
+        img *= clip_exp_time/header["EXPTIME"]
         img = np.clip(img, 0, saturation_value)
     return img
 

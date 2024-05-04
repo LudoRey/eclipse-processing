@@ -38,37 +38,37 @@ def mtf(x, m):
 def read_fits_as_float(filepath, verbose=True):
     if verbose:
         print(f"Opening {filepath}...")
+    # Open image/header
     with fits.open(filepath) as hdul:
         img = hdul[0].data
         header = hdul[0].header
-    if len(img.shape) == 3:
-        img = np.moveaxis(img, 0, 2) # CxHxW -> HxWxC
-    img = img.astype('float') / 65535
-    return img, header
-
-def read_fits(filepath, verbose=True, to_float=False):
-    if verbose:
-        print(f"Opening {filepath}...")
-    with fits.open(filepath) as hdul:
-        img = hdul[0].data
-        header = hdul[0].header
-    if len(img.shape) == 3:
-        img = np.moveaxis(img, 0, 2) # CxHxW -> HxWxC
-    if to_float:
+    # Type checking and float conversion
+    if img.dtype == np.uint16: 
         img = img.astype('float') / 65535
+    elif img.dtype == np.float32 or img.dtype == np.float64:
+        pass
+    else:
+        raise TypeError("FITS image format must be either uint16, float32 or float64.")
+    # If color image : CxHxW -> HxWxC
+    if len(img.shape) == 3:
+        img = np.moveaxis(img, 0, 2)
     return img, header
 
-def save_as_fits(img, header, filepath):
-    print(f"Saving to {filepath}...")
-    img = (np.clip(img, 0, 1)*65535).astype('uint16')
-    data = np.moveaxis(img, 2, 0) # HxWxC -> CxHxW
-    hdu = fits.PrimaryHDU(data=data, header=header)
-    hdu.writeto(filepath, overwrite=True)
+def remove_pedestal(img, header):
+    '''Updates header in-place'''
+    if "PEDESTAL" in header:
+        img = img - header["PEDESTAL"] / 65535
+        img = np.maximum(img, 0)
+        del header["PEDESTAL"]
+    return img
 
-def save_as_float_fits(img, header, filepath):
+def save_as_fits(img, header, filepath, convert_to_uint16=True):
     print(f"Saving to {filepath}...")
-    data = np.moveaxis(img, 2, 0) # HxWxC -> CxHxW
-    hdu = fits.PrimaryHDU(data=data, header=header)
+    if convert_to_uint16:
+        img = (np.clip(img, 0, 1)*65535).astype('uint16')
+    if len(img.shape) == 3:
+        img = np.moveaxis(img, 2, 0)
+    hdu = fits.PrimaryHDU(data=img, header=header)
     hdu.writeto(filepath, overwrite=True)
 
 def read_fits_header(filepath):
@@ -82,6 +82,16 @@ def extract_subheader(header, keys):
         kv_dict[k] = header[k]
     subheader = fits.Header(kv_dict)
     return subheader
+
+def combine_headers(header1, header2):
+    # common keys will be overriden by header2's keywords
+    kv_dict = {}
+    for k in header1.keys():
+        kv_dict[k] = header1[k]
+    for k in header2.keys():
+        kv_dict[k] = header2[k]
+    header = fits.Header(kv_dict)
+    return header
 
 def get_filepaths_per_exptime(dirname):
     filepaths_per_exptime = {}

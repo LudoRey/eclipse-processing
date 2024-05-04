@@ -4,28 +4,12 @@ from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter
 from astropy.io.fits import Header
 
+from disk import linear_falloff_disk
 from utils import read_fits_as_float, save_as_fits, ht, crop, Timer, extract_subheader, read_fits_header, get_filepaths_per_exptime
 from parameters import MOON_RADIUS_DEGREE
 from parameters import SATURATION_VALUE, CLIP_EXP_TIME
 from parameters import IMAGE_SCALE, ROTATION
 from parameters import INPUT_DIR, MOON_DIR, SUN_STACKS_DIR, SUN_DIR, FILENAME, REF_FILENAME
-
-def binary_disk(x_c: float, y_c: float, radius: float, shape: np.array):
-    # Not used
-    x, y = np.arange(shape[1]), np.arange(shape[0])
-    X, Y = np.meshgrid(x, y)
-    binary_disk = np.sqrt((X-x_c)**2 + (Y-y_c)**2) <= radius
-    return binary_disk 
-
-def linear_falloff_disk(x_c: float, y_c: float, radius: float, shape: np.array, smoothness: float = 10, return_dist: bool = False):
-    x, y = np.arange(shape[1]), np.arange(shape[0])
-    X, Y = np.meshgrid(x, y)
-    R = np.sqrt((X-x_c)**2 + (Y-y_c)**2)
-    smooth_disk = np.clip((radius-R+smoothness)/smoothness, 0, 1)
-    if return_dist:
-        return smooth_disk, R
-    else:
-        return smooth_disk
 
 moon_radius_pixels = MOON_RADIUS_DEGREE * 3600 / IMAGE_SCALE
 EXTRA_RADIUS_PIXELS = 2
@@ -83,8 +67,7 @@ for exptime in filepaths_per_exptime.keys():
     merged_img[sum_weights == 0] = filler_img[sum_weights == 0]
 
     output_header = extract_subheader(header, ["EXPTIME", "PEDESTAL", "SUN-X", "SUN-Y"]) # common keywords
-    exp_mm, exp_ss = f"{header["EXPTIME"]:.5f}".split('.')
-    save_as_fits(merged_img, output_header, os.path.join(SUN_STACKS_DIR, f"{exp_mm}m{exp_ss}s.fits"))
+    save_as_fits(merged_img, output_header, os.path.join(SUN_STACKS_DIR, f"{float(exptime):.5f}s.fits"))
 
 # stacked_img = crop(stacked_img, int(sun_x_c), int(sun_y_c))
 # filler_img = crop(filler_img, int(sun_x_c), int(sun_y_c))
