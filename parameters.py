@@ -32,7 +32,7 @@ SUN_DIR = "data\\totality\\sun_fits"
 SUN_STACKS_DIR = "data\\totality\\sun_stacks"
 MERGED_STACKS_DIR = "data\\totality\\merged_stacks"
 
-REF_FILENAME = "0m00025s_2024-04-09_02h42m41s.fits"
+REF_FILENAME = "0m01667s_2024-04-09_02h42m25s.fits"
 FILENAME = "0m00025s_2024-04-09_02h40m16s.fits"
 #REF_FILENAME = "0m00025s_2024-04-09_02h43m02s.fits"
 #FILENAME = "0m00025s_2024-04-09_02h39m59s.fits"

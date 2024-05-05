@@ -43,12 +43,12 @@ def read_fits_as_float(filepath, verbose=True):
         img = hdul[0].data
         header = hdul[0].header
     # Type checking and float conversion
-    if img.dtype == np.uint16: 
+    if np.issubdtype(img.dtype, np.uint16): 
         img = img.astype('float') / 65535
-    elif img.dtype == np.float32 or img.dtype == np.float64:
+    elif np.issubdtype(img.dtype, np.floating):
         pass
     else:
-        raise TypeError("FITS image format must be either uint16, float32 or float64.")
+        raise TypeError(f"FITS image format must be either 16-bit unsigned integer, or floating point.")
     # If color image : CxHxW -> HxWxC
     if len(img.shape) == 3:
         img = np.moveaxis(img, 0, 2)

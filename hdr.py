@@ -66,7 +66,7 @@ def fast_evaluate_trigonometric_basis(theta, degree, N=10000):
     trigo_basis = f(theta)
     return trigo_basis
 
-def masked_resampled_linear_trigo_fit_images(img_x, img_theta, img_y, mask, degree=4, num_sectors=30, num_samples_per_sector=400):
+def equalize_brightness(img_x, img_theta, img_y, mask, degree=4, num_sectors=30, num_samples_per_sector=400, return_coeffs=False):
     valid_x = img_x.mean(axis=2)[mask]
     valid_y = img_y.mean(axis=2)[mask]
     valid_theta = img_theta[mask]
@@ -89,4 +89,7 @@ def masked_resampled_linear_trigo_fit_images(img_x, img_theta, img_y, mask, degr
     img_slope = (trigo_basis @ slope_trigo_coeffs).reshape(img_theta.shape)
     img_fitted_x = img_offset[:,:,None] + img_slope[:,:,None]*img_x
 
-    return img_fitted_x
+    if return_coeffs:
+        return img_fitted_x, img_offset, img_slope 
+    else:
+        return img_fitted_x
