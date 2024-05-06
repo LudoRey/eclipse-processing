@@ -105,3 +105,20 @@ def get_filepaths_per_exptime(dirname):
             else:
                 filepaths_per_exptime[str(header["EXPTIME"])] = [filepath]
     return filepaths_per_exptime
+
+def crop_inset(img, crop_center, crop_radii, scale=4, border_value=np.nan, border_thickness=2):
+    # Crop
+    i_left, i_right = crop_center[0]-crop_radii[0], crop_center[0]+crop_radii[0]
+    j_top, j_bottom = crop_center[1]-crop_radii[1], crop_center[1]+crop_radii[1]
+    crop = img[i_left:i_right+1, j_top:j_bottom+1]
+    # Crop border
+    img[i_left-border_thickness:i_right+1+border_thickness, j_top-border_thickness:j_top] = border_value
+    img[i_left-border_thickness:i_right+1+border_thickness, j_bottom+1:j_bottom+1+border_thickness] = border_value
+    img[i_left-border_thickness:i_left, j_top-border_thickness:j_bottom+1+border_thickness] = border_value
+    img[i_right+1:i_right+1+border_thickness, j_top-border_thickness:j_bottom+1+border_thickness] = border_value
+    # Add inset
+    inset = crop.repeat(scale,axis=0).repeat(scale,axis=1)
+    img[-inset.shape[0]:, -inset.shape[1]:] = inset
+    # Inset border 
+    img[-inset.shape[0]:, -inset.shape[1]-border_thickness:-inset.shape[1]] = border_value
+    img[-inset.shape[0]-border_thickness:-inset.shape[0], -inset.shape[1]:] = border_value
