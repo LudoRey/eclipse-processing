@@ -8,18 +8,6 @@ def saturation_weighting(img, low, high, low_smoothness, high_smoothness):
     weights = low_weights + high_weights - 1 
     return weights
 
-def binary_disk(x_c, y_c, radius, shape):
-    x, y = np.arange(shape[1]), np.arange(shape[0])
-    X, Y = np.meshgrid(x, y)
-    binary_disk = np.sqrt((X-x_c)**2 + (Y-y_c)**2) <= radius
-    return binary_disk
-
-def angle_map(x_c, y_c, shape):
-    x, y = np.arange(shape[1]), np.arange(shape[0])
-    X, Y = np.meshgrid(x, y)
-    theta = np.arctan(-(Y-y_c)/(X-x_c)) + np.pi * (X-x_c < 0) + 2*np.pi * (X-x_c > 0)*(Y-y_c > 0) # tan is pi-periodic : arctan can be many things
-    return theta
-
 def evaluate_trigonometric_basis(theta, degree):
     out = [np.ones(theta.shape[0])]
     for n in range(1, degree+1):

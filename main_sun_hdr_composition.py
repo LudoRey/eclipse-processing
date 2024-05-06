@@ -12,7 +12,8 @@ from parameters import IMAGE_SCALE, ROTATION
 from parameters import SUN_STACKS_DIR, MOON_STACKS_DIR
 
 from disk import binary_disk
-from hdr import saturation_weighting, equalize_brightness, angle_map
+from hdr import saturation_weighting, equalize_brightness
+from polar import angle_map
 
 LOW_CLIPPING_THRESHOLD = 0.005
 LOW_SMOOTHNESS = 0.001
