@@ -81,3 +81,14 @@ def equalize_brightness(img_x, img_theta, img_y, mask, degree=4, num_sectors=30,
         return img_fitted_x, img_offset, img_slope 
     else:
         return img_fitted_x
+    
+# if __name__ == "__main__":
+#     x = np.linspace(0, 0.25, 1000)
+#     LOW_CLIPPING_THRESHOLD = 0.005
+#     LOW_SMOOTHNESS = 0.001
+#     HIGH_CLIPPING_THRESHOLD = 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have HIGH/LOW << k
+#     HIGH_SMOOTHNESS = 0.01
+#     w = saturation_weighting(x, LOW_CLIPPING_THRESHOLD, HIGH_CLIPPING_THRESHOLD, LOW_SMOOTHNESS, HIGH_SMOOTHNESS)
+#     from matplotlib import pyplot as plt 
+#     plt.plot(x, w)
+#     plt.show()

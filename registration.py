@@ -19,7 +19,7 @@ def prepare_img_for_detection(img, header, clip_exp_time, saturation_value):
     if len(img.shape) == 3:
         # Convert to grayscale
         img = img.mean(axis=2)
-    if "PEDESTAL" in header:
+    if "PEDESTAL" in header: # TODO : need better handling of the pedestal / saturation relationship here
         # Remove pedestal
         img = img - header["PEDESTAL"] / 65535
     if header["EXPTIME"] < clip_exp_time:

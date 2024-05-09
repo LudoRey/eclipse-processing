@@ -22,9 +22,12 @@ def combine_red_green(img1, img2):
     img[:,:,1] = img2 
     return img
 
-def ht(x, m, low=None, high=None):
+def ht(x, m, low=None, high=None, shadow_clipping=False):
     if low is None:
-        low = x.min()
+        if shadow_clipping:
+            low = np.median(x)
+        else:
+            low = x.min()
     if high is None:
         high = x.max()
     x = np.clip(x, low, high)
@@ -122,3 +125,19 @@ def crop_inset(img, crop_center, crop_radii, scale=4, border_value=np.nan, borde
     # Inset border 
     img[-inset.shape[0]:, -inset.shape[1]-border_thickness:-inset.shape[1]] = border_value
     img[-inset.shape[0]-border_thickness:-inset.shape[0], -inset.shape[1]:] = border_value
+
+def crop_img(img, left, right, top, bottom, header=None):
+    # Crop image
+    new_img = img[top:bottom+1, left:right+1]
+    if header is not None:
+        # Create and update new header
+        new_header = fits.Header(header, copy=True)
+        new_header["NAXIS1"], new_header["NAXIS2"] = img.shape[1], img.shape[0] 
+        for k, v in new_header.items():
+            if k in ["MOON-X", "SUN-X"]:
+                new_header[k] = v - left 
+            if k in ["MOON-Y", "SUN-Y"]:
+                new_header[k] = v - top
+        return new_img, new_header 
+    else:
+        return new_img

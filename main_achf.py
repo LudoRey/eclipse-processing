@@ -1,46 +1,83 @@
 import numpy as np
+import os
 import matplotlib.pyplot as plt
+from skimage.transform import warp_polar
+from scipy.ndimage import gaussian_filter
 
-from utils import crop_inset
-from polar import angle_map, radius_map
+from utils import crop_inset, crop, crop_img, read_fits_as_float, Timer, ht, save_as_fits
+from polar import angle_map, radius_map, coords_cart_to_polar, coords_polar_to_cart, warp_cart_to_polar, warp_polar_to_cart
+from achf import achf, radial_tangential, partial_filter
 
-def achf_kernel_at_ij(i, j, theta, rho, sigma, return_components=False):
-    # TODO: only compute values for -2*sigma to 2*sigma 
-    rho_center = rho[i,j]
-    theta_center = theta[i,j]
-    delta_rho = rho_center - rho
-    delta_theta = theta_center - theta
-    delta_theta[delta_theta > np.pi] = 2*np.pi - delta_theta[delta_theta > np.pi] # to handle the periodicity (not the same as modulo)
-    if return_components:
-        radial = np.exp(-delta_rho**2/(2*sigma**2))
-        tangential = np.exp(-(rho_center*delta_theta)**2/(2*sigma**2))
-        return radial, tangential
-    else:
-        kernel = np.exp(-(delta_rho**2 + (rho_center*delta_theta)**2)/(2*sigma**2)) 
-        return kernel
+# def uniform_grid_points(shape, d):
+#     x, y = np.arange(shape[1]), np.arange(shape[0])
+#     X, Y = np.meshgrid(x, y)
+#     img = np.logical_and(X % d == 0, Y % d == 0).astype('float')
+#     return img
+# shape = [201, 201]
+# img = uniform_grid_points(shape, d = 20)
+# x_c, y_c = (shape[1]-1) / 2, (shape[0]-1) / 2
 
-SIGMA = 10
+IMAGE_FILEPATH = "data\\totality\\merged_hdr\\hdr.fits"
+MASK_FILEPATH = "data\\totality\\merged_hdr\\moon_mask.fits"
 
-shape = [1000, 1000]
-x_c, y_c = 500, 500
+FILTERED_DIR = "data\\totality\\filtered"
 
-theta, rho = angle_map(x_c, y_c, shape), radius_map(x_c, y_c, shape)
+os.makedirs(FILTERED_DIR, exist_ok=True)
 
-fig, axes = plt.subplots(1,2)
+SIGMA = 2
+mode = 'ACHF'
 
-axes[0].imshow(theta); axes[0].set_title('Angle')
-axes[1].imshow(rho); axes[1].set_title('Radius')
+# Load image
+img, header = read_fits_as_float(IMAGE_FILEPATH)
+img, header = crop_img(img, 300, -20, 300, -20, header=header)
+moon_mask, _ = read_fits_as_float(MASK_FILEPATH)
+moon_mask = crop_img(moon_mask, 300, -20, 300, -20)
+mask = 1 - moon_mask
+#save_as_fits(img, header, os.path.join(FILTERED_DIR, f"image.fits"), convert_to_uint16=False)
+x_c, y_c = header["SUN-X"], header["SUN-Y"]
 
-fig1, axes1 = plt.subplots(2,3)
+img = img.mean(axis=2)
+mask = mask[:,:,0]
+#mask = (mask > 0).astype('float')
 
-i = [200, 400]
-j = [200, 400]
-for k in range(2):
-    radial, tangential = achf_kernel_at_ij(i[k], j[k], theta, rho, SIGMA, return_components=True)
-    crop_inset(radial, [i[k],j[k]], [50,50])
-    crop_inset(tangential, [i[k],j[k]], [50,50])
-    axes1[k,0].imshow(radial); axes1[0,0].set_title("Radial component")
-    axes1[k,1].imshow(tangential); axes1[0,1].set_title("Tangential component")
-    axes1[k,2].imshow(radial*tangential); axes1[0,2].set_title("Kernel")
+if mode == 'tangential_radial' or mode == 'ACHF':
+    output_shape = [2000, 4000] # (theta, rho)
+    img_polar, theta_factor, rho_factor = warp_cart_to_polar(img, x_c, y_c, output_shape, return_factors=True)
+    mask_polar = warp_cart_to_polar(mask, x_c, y_c, output_shape)
+    if mode == 'tangential_radial':
+        rho_0 = np.nonzero(mask_polar)[1].min() / rho_factor # Extract the (smallest) moon radius
+        filter_args = {'sigma': SIGMA, 'rho_0': rho_0, 'rho_factor': rho_factor, 'theta_factor': theta_factor}
+        blurred_img_polar = partial_filter(img_polar, mask_polar, radial_tangential, filter_args)
+    if mode == 'ACHF':
+        j_0 = np.nonzero(mask_polar)[1].min() # Extract the smallest column index that contains a non-zero element in the mask 
+        filter_args = {'sigma': SIGMA, 'j_0': j_0, 'rho_factor': rho_factor, 'theta_factor': theta_factor}
+        blurred_img_polar = partial_filter(img_polar, mask_polar, achf, filter_args)
+    blurred_img = warp_polar_to_cart(blurred_img_polar, x_c, y_c, img.shape)
+    
+if mode == 'gaussian':
+    blurred_img = partial_filter(img, mask, gaussian_filter, {'sigma' : SIGMA})
 
+amount = 10
+sharpened_img = (1+amount)*img - amount*blurred_img
+
+save_as_fits(sharpened_img, None, os.path.join(FILTERED_DIR, f"{mode}_{SIGMA}.fits"), convert_to_uint16=False)
+
+fig, axes = plt.subplots(2,2)
+axes = axes.flatten()
+
+m = 0.01
+low = img.min()
+high = img.max()
+img = ht(img, m, low, high)
+blurred_img = ht(blurred_img, m, low, high)
+sharpened_img = ht(sharpened_img, m, low, high)
+
+axes[0].imshow(crop(img, int(x_c), int(y_c)))
+axes[1].imshow(crop(mask, int(x_c), int(y_c)))
+axes[2].imshow(crop(blurred_img, int(x_c), int(y_c)))
+axes[3].imshow(crop(sharpened_img, int(x_c), int(y_c)))
+
+
+# m = 0.000001
+# sharpened_img = ht(sharpened_img, m, shadow_clipping=True)
 plt.show()
