@@ -6,7 +6,7 @@ from scipy.ndimage import gaussian_filter
 
 from utils import crop_inset, crop, crop_img, read_fits_as_float, Timer, ht, save_as_fits
 from polar import angle_map, radius_map, coords_cart_to_polar, coords_polar_to_cart, warp_cart_to_polar, warp_polar_to_cart
-from achf import achf, radial_tangential, partial_filter
+from filters import achf, radial_tangential, partial_filter
 
 # def uniform_grid_points(shape, d):
 #     x, y = np.arange(shape[1]), np.arange(shape[0])
@@ -24,8 +24,8 @@ FILTERED_DIR = "data\\totality\\filtered"
 
 os.makedirs(FILTERED_DIR, exist_ok=True)
 
-SIGMA = 2
-mode = 'ACHF'
+SIGMA = 0.5
+mode = 'tangential_radial'
 
 # Load image
 img, header = read_fits_as_float(IMAGE_FILEPATH)
@@ -58,9 +58,11 @@ if mode == 'gaussian':
     blurred_img = partial_filter(img, mask, gaussian_filter, {'sigma' : SIGMA})
 
 amount = 10
+highpass_img = img - blurred_img
 sharpened_img = (1+amount)*img - amount*blurred_img
 
-save_as_fits(sharpened_img, None, os.path.join(FILTERED_DIR, f"{mode}_{SIGMA}.fits"), convert_to_uint16=False)
+save_as_fits(highpass_img, header, os.path.join(FILTERED_DIR, f"highpass_{mode}_{SIGMA}.fits"), convert_to_uint16=False)
+save_as_fits(sharpened_img, header, os.path.join(FILTERED_DIR, f"{mode}_{SIGMA}.fits"), convert_to_uint16=False)
 
 fig, axes = plt.subplots(2,2)
 axes = axes.flatten()

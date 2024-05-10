@@ -22,12 +22,29 @@ def combine_red_green(img1, img2):
     img[:,:,1] = img2 
     return img
 
-def ht(x, m, low=None, high=None, shadow_clipping=False):
+def auto_ht(x, clip_from_median=2.8, target_median=0.25, return_params=False):
+    # Compute low clipping point
+    median = np.median(x)
+    MAD = np.median(np.abs(x-median))*1.4826 # constant to make consistent with gaussian distribution https://pixinsight.com/forum/index.php?threads/pixinsight-1-8-0-ripley-redesigned-statistics-tool.6119/
+    low = median - clip_from_median*MAD
+    # Compute high clipping point
+    high = x.max()
+    # Clip and rescale (usually done in ht() but we need it to compute m)
+    x = np.clip(x, low, high)
+    x = (x - low)/(high - low)
+    # Compute the midpoint that yields a specified target median value
+    median = np.median(x)
+    m = mtf(median, target_median) # this might look weird but you can prove that it works
+    # Apply histogram
+    x = mtf(x, m)
+    if return_params:
+        return x, m, low, high
+    else:
+        return x
+
+def ht(x, m, low=None, high=None):
     if low is None:
-        if shadow_clipping:
-            low = np.median(x)
-        else:
-            low = x.min()
+        low = x.min()
     if high is None:
         high = x.max()
     x = np.clip(x, low, high)
