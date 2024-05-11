@@ -22,7 +22,6 @@ MOON_RADIUS_DEGREE = 0.278 # Stellarium gives 0.280 but its a bit too big. 0.278
 
 # Derived manually from images
 SATURATION_VALUE = 0.13
-CLIP_EXP_TIME = 0.01667 # fastest exposure time with clipping around the moon
 
 # I/O
 INPUT_DIR = "data\\totality\\fits"
@@ -31,8 +30,3 @@ MOON_STACKS_DIR = "data\\totality\\moon_stacks"
 SUN_DIR = "data\\totality\\sun_fits"
 SUN_STACKS_DIR = "data\\totality\\sun_stacks"
 MERGED_STACKS_DIR = "data\\totality\\merged_stacks"
-
-REF_FILENAME = "0m01667s_2024-04-09_02h42m25s.fits"
-FILENAME = "0m00025s_2024-04-09_02h40m16s.fits"
-#REF_FILENAME = "0m00025s_2024-04-09_02h43m02s.fits"
-#FILENAME = "0m00025s_2024-04-09_02h39m59s.fits"

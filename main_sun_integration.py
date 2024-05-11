@@ -1,20 +1,17 @@
 import os
 import numpy as np
-from matplotlib import pyplot as plt
-from scipy.ndimage import gaussian_filter
-from astropy.io.fits import Header
 
 from disk import linear_falloff_disk
-from utils import read_fits_as_float, save_as_fits, ht, crop, Timer, extract_subheader, read_fits_header, get_filepaths_per_exptime
+from utils import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_filepaths_per_exptime
 from parameters import MOON_RADIUS_DEGREE
-from parameters import SATURATION_VALUE, CLIP_EXP_TIME
-from parameters import IMAGE_SCALE, ROTATION
-from parameters import INPUT_DIR, MOON_DIR, SUN_STACKS_DIR, SUN_DIR, FILENAME, REF_FILENAME
+from parameters import IMAGE_SCALE
+from parameters import SUN_DIR, SUN_STACKS_DIR
+
+EXTRA_RADIUS_PIXELS = 2
+SMOOTHNESS = 10
 
 moon_radius_pixels = MOON_RADIUS_DEGREE * 3600 / IMAGE_SCALE
-EXTRA_RADIUS_PIXELS = 2
 moon_radius_pixels += EXTRA_RADIUS_PIXELS
-SMOOTHNESS = 10
 
 os.makedirs(SUN_STACKS_DIR, exist_ok=True)
 
@@ -68,30 +65,3 @@ for exptime in filepaths_per_exptime.keys():
 
     output_header = extract_subheader(header, ["EXPTIME", "PEDESTAL", "SUN-X", "SUN-Y"]) # common keywords
     save_as_fits(merged_img, output_header, os.path.join(SUN_STACKS_DIR, f"{float(exptime):.5f}s.fits"))
-
-# stacked_img = crop(stacked_img, int(sun_x_c), int(sun_y_c))
-# filler_img = crop(filler_img, int(sun_x_c), int(sun_y_c))
-# merged_img = crop(merged_img, int(sun_x_c), int(sun_y_c))
-
-# low, high = merged_img.min(), merged_img.max()
-# stacked_img = ht(stacked_img, m=0.1, low=low, high=high)
-# filler_img = ht(filler_img, m=0.1, low=low, high=high)
-# merged_img = ht(merged_img, m=0.1, low=low, high=high)
-
-# sum_weights = crop(sum_weights, int(sun_x_c), int(sun_y_c))
-# mask = crop(mask, int(sun_x_c), int(sun_y_c))
-
-# fig, axes = plt.subplots(2,2)
-# axes = axes.flatten()
-# axes[0].imshow(stacked_img)
-# axes[1].imshow(filler_img)
-# axes[2].imshow(merged_img)
-# axes[3].imshow(sum_weights)
-
-# plt.figure()
-# plt.imshow(merged_img)
-
-# # plt.figure()
-# # plt.imshow(filler_img_contributors)
-
-# plt.show()

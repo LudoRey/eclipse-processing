@@ -15,38 +15,35 @@ def translate(img, dx, dy):
     registered_img = transform.warp(img, tform.inverse)
     return registered_img
 
-def prepare_img_for_detection(img, header, clip_exp_time, saturation_value):
+def prepare_img_for_detection(img, min_clipped_pixels):
     if len(img.shape) == 3:
         # Convert to grayscale
         img = img.mean(axis=2)
-    if "PEDESTAL" in header: # TODO : need better handling of the pedestal / saturation relationship here
-        # Remove pedestal
-        img = img - header["PEDESTAL"] / 65535
-    if header["EXPTIME"] < clip_exp_time:
-        # Artificially clip short exposures to facilitate edge detection
-        img *= clip_exp_time/header["EXPTIME"]
-        img = np.clip(img, 0, saturation_value)
+    hist, bin_edges = np.histogram(img, bins=1000)
+    cumhist = np.cumsum(hist)
+    clip_value = bin_edges[np.nonzero(cumhist > img.size - min_clipped_pixels)[0][0]]
+    img = np.clip(img, 0, clip_value)
+    img /= clip_value
+    print(f"Rescaling and clipping pixels above {clip_value:.3f}")
     return img
 
 def moon_detection(img, moon_radius_pixels):
     # Canny
     print(f"Canny edge detection...")
-    # Find the (appproximate) number of pixels that correspond to the moon circonference (moon_circonference_pixels, or M)
-    # Canny will use a high threshold that retains the M brightest pixels in the gradient image 
+    # Find the (appproximate) number of pixels that correspond to the moon circonference (M)
+    # Canny will use a threshold that retains the M brightest pixels in the gradient image (before NMS, so there might be less of them after NMS)
     moon_circonference_pixels = 2*np.pi*moon_radius_pixels 
     moon_circonference_fraction = moon_circonference_pixels / img.size
 
-    low_threshold = 1-moon_circonference_fraction
-    high_threshold = 1-moon_circonference_fraction
-    #print(f"    - Setting high threshold that corresponds to the {int(moon_circonference_pixels)} brightest edge pixels before NMS.")
+    threshold = 1-moon_circonference_fraction # Single threshold : no hysteresis
 
-    edges = canny(img, sigma=1, low_threshold=low_threshold, high_threshold=high_threshold, use_quantiles=True)
+    edges = canny(img, sigma=1, low_threshold=threshold, high_threshold=threshold, use_quantiles=True)
     print(f"Found {np.count_nonzero(edges)} edge pixels.")
 
     # RANSAC
     print("RANSAC fitting...")
     min_samples = 20 # Number of random samples used to estimate the model parameters at each iteration
-    residual_threshold = 1 # Inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale ? But shouldnt really be lower than 1...
+    residual_threshold = 1 # Inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale, but shouldnt really be lower than 1...
     max_trials = 100 # Number of RANSAC trials 
     edges_coords = np.column_stack(np.nonzero(edges))
     model, inliers = measure.ransac(edges_coords, measure.CircleModel,
