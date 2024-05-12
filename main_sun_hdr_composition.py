@@ -16,10 +16,11 @@ LOW_SMOOTHNESS = 0.001
 HIGH_CLIPPING_THRESHOLD = 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have HIGH/LOW << k
 HIGH_SMOOTHNESS = 0.01
 
+EXTRA_RADIUS_PIXELS = 10
+
 os.makedirs(SUN_HDR_DIR, exist_ok=True)
 
 moon_radius_pixels = MOON_RADIUS_DEGREE * 3600 / IMAGE_SCALE
-EXTRA_RADIUS_PIXELS = 10
 moon_radius_pixels += EXTRA_RADIUS_PIXELS
 
 grouped_filepaths = get_grouped_filepaths(SUN_STACKS_DIR, GROUP_KEYWORDS) # we need sorted files based on irradiance
