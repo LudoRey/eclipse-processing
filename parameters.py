@@ -2,8 +2,12 @@ from astropy.time import Time
 
 # Platesolved parameters
 IMAGE_SCALE = 5.89 # image scale in arcsec/pixels
-
 ROTATION = 44.045 # given by PixInsight !!
+
+# Keyword corresponding to settings that were changed 
+# F-ratio is not supported at the moment (usually not stored in the header anyway)
+GROUP_KEYWORDS = ["EXPTIME"]
+#GROUP_KEYWORDS = ["EXPTIME", "ISOSPEED"] 
 
 # Observation parameters
 LATITUDE = 45.93664
@@ -20,13 +24,12 @@ TIME_OFFSET = Time(ref_time_measured, scale='utc') - Time(ref_time_utc, scale='u
 # Radius of the moon in degrees (approximately)
 MOON_RADIUS_DEGREE = 0.278 # Stellarium gives 0.280 but its a bit too big. 0.278 is already an upper bound in practice.
 
-# Derived manually from images
-SATURATION_VALUE = 0.13
-
 # I/O
 INPUT_DIR = "data\\totality\\fits"
 MOON_DIR = "data\\totality\\moon_fits"
 MOON_STACKS_DIR = "data\\totality\\moon_stacks"
 SUN_DIR = "data\\totality\\sun_fits"
 SUN_STACKS_DIR = "data\\totality\\sun_stacks"
-MERGED_STACKS_DIR = "data\\totality\\merged_stacks"
+SUN_HDR_DIR = "data\\totality\\sun_hdr"
+MOON_HDR_DIR = "data\\totality\\moon_hdr"
+MERGED_HDR_DIR = "data\\totality\\merged_hdr"

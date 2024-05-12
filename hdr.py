@@ -76,11 +76,16 @@ def equalize_brightness(img_x, img_theta, img_y, mask, degree=4, num_sectors=30,
     img_offset = (trigo_basis @ offset_trigo_coeffs).reshape(img_theta.shape)
     img_slope = (trigo_basis @ slope_trigo_coeffs).reshape(img_theta.shape)
     img_fitted_x = img_offset[:,:,None] + img_slope[:,:,None]*img_x
-
+    print(img_slope.mean())
     if return_coeffs:
         return img_fitted_x, img_offset, img_slope 
     else:
         return img_fitted_x
+    
+def compute_scaling_factor(header, keywords):
+    # All keyword values must be linearly increasing w.r.t irradiance
+    # This covers EXPTIME and ISOSPEED/GAIN. Not F-ratio (which could be manually embedded in the FITS header in a later version if necessary)
+    return np.prod(np.array([header[keyword] for keyword in keywords]))
     
 # if __name__ == "__main__":
 #     x = np.linspace(0, 0.25, 1000)

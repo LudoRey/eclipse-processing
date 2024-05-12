@@ -1,18 +1,14 @@
 import os
 import numpy as np
-from matplotlib import pyplot as plt
-
-from utils import read_fits_as_float, crop, ht, combine_headers, save_as_fits, get_filepaths_per_exptime, read_fits_header, extract_subheader
-
-from registration import prepare_img_for_detection
 from scipy import ndimage
 
+from utils import read_fits_as_float, combine_headers, save_as_fits
+from parameters import MERGED_HDR_DIR
+
 SIGMA = 2
-THRESHOLD = 0.02
+MOON_THRESHOLD = 0.002
 
-MERGED_HDR_DIR = "data\\totality\\merged_hdr"
 os.makedirs(MERGED_HDR_DIR, exist_ok=True)
-
 
 moon_filepath, sun_filepath = "data\\totality\\moon_hdr\\hdr.fits", "data\\totality\\sun_hdr\\hdr.fits"
 img_moon, header_moon = read_fits_as_float(moon_filepath)
@@ -23,9 +19,8 @@ print(f"Merging moon and sun images...")
 x_c = header_moon["MOON-X"]
 y_c = header_moon["MOON-Y"]
 
-
 # Extract binary moon mask
-threshold_mask = img_moon.mean(axis=2) < THRESHOLD
+threshold_mask = img_moon.mean(axis=2) < MOON_THRESHOLD
 label_map, _ = ndimage.label(threshold_mask)
 moon_label = label_map[int(y_c), int(x_c)]
 moon_mask = (label_map == moon_label).astype('float')
@@ -44,11 +39,3 @@ img_merged = moon_mask[:,:,None]*img_moon + (1-moon_mask)[:,:,None]*img_sun
 header_merged = combine_headers(header_moon, header_sun)
 save_as_fits(img_merged, header_merged, os.path.join(MERGED_HDR_DIR, f"hdr.fits"), convert_to_uint16=False)
 save_as_fits(moon_mask[:,:,None], None, os.path.join(MERGED_HDR_DIR, f"moon_mask.fits"))
-
-# fig, axes = plt.subplots(2,2)
-# axes = axes.flatten()
-# axes[0].imshow(ht(crop(img_moon, int(x_c), int(y_c)), m=0.1, low=0, high=0.13))
-# axes[1].imshow(ht(crop(img_sun, int(x_c), int(y_c)), m=0.1, low=0, high=0.13))
-# axes[2].imshow(ht(crop(img_merged, int(x_c), int(y_c)), m=0.1, low=0, high=0.13))
-# axes[3].imshow(crop(moon_mask, int(x_c), int(y_c)), cmap='gray')
-# plt.show()

@@ -2,10 +2,11 @@ import os
 import numpy as np
 
 from disk import linear_falloff_disk
-from utils import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_filepaths_per_exptime
+from utils import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
 from parameters import MOON_RADIUS_DEGREE
 from parameters import IMAGE_SCALE
 from parameters import SUN_DIR, SUN_STACKS_DIR
+from parameters import GROUP_KEYWORDS
 
 EXTRA_RADIUS_PIXELS = 2
 SMOOTHNESS = 10
@@ -15,22 +16,23 @@ moon_radius_pixels += EXTRA_RADIUS_PIXELS
 
 os.makedirs(SUN_STACKS_DIR, exist_ok=True)
 
-# Make a dictionary that contains for each exposure time (key) a list of associated filepaths (value)
-filepaths_per_exptime = get_filepaths_per_exptime(SUN_DIR)
+# Make a dictionary that contains for each group (key) a list of associated filepaths (value)
+grouped_filepaths = get_grouped_filepaths(SUN_DIR, GROUP_KEYWORDS)
 
-# Need image shape to initialize stuff : we get it from the first filepath of the "first" key
-header = read_fits_header(filepaths_per_exptime[list(filepaths_per_exptime)[0]][0]) 
-shape = (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"])
-
-for exptime in filepaths_per_exptime.keys():
-    print(f"Stacking {exptime}s exposures...")
+for group_name in grouped_filepaths.keys():
+    # Need header to get image shape, and info about group
+    header = read_fits_header(grouped_filepaths[group_name][0])
+    shape = (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"])
+    print(f"Stacking images from group {group_name} :")
+    for keyword in GROUP_KEYWORDS:
+        print(f"    - {keyword} : {header[keyword]}")
     # Initialize stuff
     stacked_img = np.zeros(shape)
     filler_img = np.zeros(shape)
     sum_weights = np.zeros(shape[0:2])
     max_dist_to_moon_center = np.zeros(shape[0:2])
     # Loop over subs
-    for filepath in filepaths_per_exptime[exptime]:
+    for filepath in grouped_filepaths[group_name]:
         # Read image
         img, header = read_fits_as_float(filepath)
         # Get the moon center coordinates of the current frame
@@ -63,5 +65,5 @@ for exptime in filepaths_per_exptime.keys():
     merged_img = np.copy(stacked_img)
     merged_img[sum_weights == 0] = filler_img[sum_weights == 0]
 
-    output_header = extract_subheader(header, ["EXPTIME", "PEDESTAL", "SUN-X", "SUN-Y"]) # common keywords
-    save_as_fits(merged_img, output_header, os.path.join(SUN_STACKS_DIR, f"{float(exptime):.5f}s.fits"))
+    output_header = extract_subheader(header, GROUP_KEYWORDS+["PEDESTAL", "SUN-X", "SUN-Y"]) # common keywords
+    save_as_fits(merged_img, output_header, os.path.join(SUN_STACKS_DIR, f"{group_name}.fits"))
