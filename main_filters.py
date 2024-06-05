@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
 from scipy.ndimage import gaussian_filter
 
-from utils import crop_inset, crop, crop_img, read_fits_as_float, Timer, ht, save_as_fits
-from polar import angle_map, radius_map, coords_cart_to_polar, coords_polar_to_cart, warp_cart_to_polar, warp_polar_to_cart
-from filters import achf, radial_tangential, partial_filter
+from lib.display import crop, center_crop, ht
+from lib.fits import read_fits_as_float, save_as_fits
+from lib.polar import angle_map, radius_map, coords_cart_to_polar, coords_polar_to_cart, warp_cart_to_polar, warp_polar_to_cart
+from lib.filters import achf, radial_tangential, partial_filter
 
 # def uniform_grid_points(shape, d):
 #     x, y = np.arange(shape[1]), np.arange(shape[0])
@@ -17,10 +18,10 @@ from filters import achf, radial_tangential, partial_filter
 # img = uniform_grid_points(shape, d = 20)
 # x_c, y_c = (shape[1]-1) / 2, (shape[0]-1) / 2
 
-IMAGE_FILEPATH = "data\\totality\\merged_hdr\\hdr.fits"
-MASK_FILEPATH = "data\\totality\\merged_hdr\\moon_mask.fits"
+IMAGE_FILEPATH = "D:\\_ECLIPSE2024\\data\\totality\\merged_hdr\\hdr.fits"
+MASK_FILEPATH = "D:\\_ECLIPSE2024\\data\\totality\\merged_hdr\\moon_mask.fits"
 
-FILTERED_DIR = "data\\totality\\filtered"
+FILTERED_DIR = "D:\\_ECLIPSE2024\\data\\totality\\filtered"
 
 os.makedirs(FILTERED_DIR, exist_ok=True)
 
@@ -29,9 +30,9 @@ mode = 'tangential_radial'
 
 # Load image
 img, header = read_fits_as_float(IMAGE_FILEPATH)
-img, header = crop_img(img, 300, -20, 300, -20, header=header)
+img, header = crop(img, 300, -20, 300, -20, header=header)
 moon_mask, _ = read_fits_as_float(MASK_FILEPATH)
-moon_mask = crop_img(moon_mask, 300, -20, 300, -20)
+moon_mask = crop(moon_mask, 300, -20, 300, -20)
 mask = 1 - moon_mask
 #save_as_fits(img, header, os.path.join(FILTERED_DIR, f"image.fits"), convert_to_uint16=False)
 x_c, y_c = header["SUN-X"], header["SUN-Y"]
@@ -74,10 +75,10 @@ img = ht(img, m, low, high)
 blurred_img = ht(blurred_img, m, low, high)
 sharpened_img = ht(sharpened_img, m, low, high)
 
-axes[0].imshow(crop(img, int(x_c), int(y_c)))
-axes[1].imshow(crop(mask, int(x_c), int(y_c)))
-axes[2].imshow(crop(blurred_img, int(x_c), int(y_c)))
-axes[3].imshow(crop(sharpened_img, int(x_c), int(y_c)))
+axes[0].imshow(center_crop(img, int(x_c), int(y_c)))
+axes[1].imshow(center_crop(mask, int(x_c), int(y_c)))
+axes[2].imshow(center_crop(blurred_img, int(x_c), int(y_c)))
+axes[3].imshow(center_crop(sharpened_img, int(x_c), int(y_c)))
 
 
 # m = 0.000001

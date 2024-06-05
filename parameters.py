@@ -19,11 +19,11 @@ GROUP_KEYWORDS = ["EXPTIME"]
 #GROUP_KEYWORDS = ["EXPTIME", "ISOSPEED"] 
 
 # I/O
-INPUT_DIR = "data\\totality\\fits" # must be an existing directory : the others below will be created by the scripts.
-MOON_DIR = "data\\totality\\moon_fits"
-MOON_STACKS_DIR = "data\\totality\\moon_stacks"
-SUN_DIR = "data\\totality\\sun_fits"
-SUN_STACKS_DIR = "data\\totality\\sun_stacks"
-SUN_HDR_DIR = "data\\totality\\sun_hdr"
-MOON_HDR_DIR = "data\\totality\\moon_hdr"
-MERGED_HDR_DIR = "data\\totality\\merged_hdr"
+INPUT_DIR = "D:\\_ECLIPSE2024\\data\\totality\\fits" # must be an existing directory : the others below will be created by the scripts.
+MOON_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon_fits"
+MOON_STACKS_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon_stacks"
+SUN_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun_fits"
+SUN_STACKS_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun_stacks"
+SUN_HDR_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun_hdr"
+MOON_HDR_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon_hdr"
+MERGED_HDR_DIR = "D:\\_ECLIPSE2024\\data\\totality\\merged_hdr"

@@ -2,7 +2,7 @@ import os
 import numpy as np
 from scipy import ndimage
 
-from utils import read_fits_as_float, combine_headers, save_as_fits
+from lib.fits import read_fits_as_float, combine_headers, save_as_fits
 from parameters import MERGED_HDR_DIR
 
 SIGMA = 2

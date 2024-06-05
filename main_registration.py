@@ -3,73 +3,89 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from registration import translate, moon_detection, prepare_img_for_detection, get_sun_delta, convert_ra_dec_to_x_y
-from utils import read_fits_as_float, save_as_fits
-from parameters import MOON_RADIUS_DEGREE
-from parameters import IMAGE_SCALE, ROTATION
-from parameters import TIME_OFFSET, LATITUDE, LONGITUDE
-from parameters import INPUT_DIR, MOON_DIR, SUN_DIR
+from lib.registration import translate, moon_detection, convert_angular_offset_to_x_y, get_sun_moon_offset, get_moon_radius
+from lib.fits import read_fits_as_float, save_as_fits
 
-REF_FILENAME = "0.01667s_2024-04-09_02h42m25s.fits"
-CLIP_MOON_RADII = 1.3 # Because of brightness variations, the marging should be large enough so that a complete annulus is clipped
+def main(input_dir,
+         moon_dir,
+         sun_dir,
+         latitude,
+         longitude,
+         time_offset,
+         rotation,
+         image_scale,
+         ref_filename):
+    
+    os.makedirs(moon_dir, exist_ok=True)
+    os.makedirs(sun_dir, exist_ok=True)
+    
+    location = EarthLocation(lat=latitude, lon=longitude, height=0)
 
-location = EarthLocation(lat=LATITUDE, lon=LONGITUDE, height=0)
-moon_radius_pixels = MOON_RADIUS_DEGREE * 3600 / IMAGE_SCALE
+    # Load reference image
+    img, header = read_fits_as_float(os.path.join(input_dir, ref_filename))
+    ref_time = Time(header["DATE-OBS"], scale='utc') - time_offset
+    # Retrieve apparent moon radius
+    moon_radius_degree = get_moon_radius(ref_time, location)
+    moon_radius_pixels = moon_radius_degree * 3600 / image_scale
+    # Compute reference moon center
+    ref_moon_x, ref_moon_y, _ = moon_detection(img, moon_radius_pixels)
+    # Compute reference sun center
+    ref_delta_x, ref_delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(ref_time, location), rotation, image_scale)
+    ref_sun_x, ref_sun_y = ref_moon_x + ref_delta_x, ref_moon_y + ref_delta_y
 
-min_clipped_pixels = np.pi*(CLIP_MOON_RADII**2-1)*moon_radius_pixels**2 # Annulus area
+    dirpath, _, filenames = next(os.walk(input_dir)) # not going into subfolders
+    for filename in filenames:
+        if filename.endswith('.fits') and filename.startswith('0.00025s'):
 
-os.makedirs(MOON_DIR, exist_ok=True)
-os.makedirs(SUN_DIR, exist_ok=True)
+            img, header = read_fits_as_float(os.path.join(dirpath, filename))
 
-# Load reference image and check min_clipped_pixels
-img, header = read_fits_as_float(os.path.join(INPUT_DIR, REF_FILENAME))
-if min_clipped_pixels > img.size - np.pi*(1.2*moon_radius_pixels)**2:
-    raise ValueError(f"The value of CLIP_MOON_RADII ({CLIP_MOON_RADII}) is too large for your FOV.")
-# Compute reference moon center
-ref_x_c, ref_y_c, _ = moon_detection(prepare_img_for_detection(img, min_clipped_pixels), moon_radius_pixels)
-# Update FITS keywords and save image
-header.set('MOON-X', ref_x_c, 'X-coordinate of the moon center.')
-header.set('MOON-Y', ref_y_c, 'Y-coordinate of the moon center.')
-header.set('TRANS-X', 0.0, 'X-translation applied during registration.')
-header.set('TRANS-Y', 0.0, 'Y-translation applied during registration.')
-save_as_fits(img, header, os.path.join(MOON_DIR, REF_FILENAME))
+            # MOON ALIGNMENT
+            if filename == ref_filename:
+                moon_x, moon_y = ref_moon_x, ref_moon_y
+                registered_img = img
+            else:
+                moon_x, moon_y, _ = moon_detection(img, moon_radius_pixels)
+                registered_img = translate(img, ref_moon_x - moon_x, ref_moon_y - moon_y)
+            # Update FITS keywords and save image
+            header.set('MOON-X', ref_moon_x, 'X-coordinate of the moon center.')
+            header.set('MOON-Y', ref_moon_y, 'Y-coordinate of the moon center.')
+            header.set('TRANS-X', ref_moon_x - moon_x, 'X-translation applied during registration.')
+            header.set('TRANS-Y', ref_moon_y - moon_y, 'Y-translation applied during registration.')
+            save_as_fits(registered_img, header, os.path.join(moon_dir, filename))
 
-# Compute reference sun-moon delta
-ref_time = Time(header["DATE-OBS"], scale='utc') - TIME_OFFSET 
-ref_delta_ra, ref_delta_dec = get_sun_delta(ref_time, location)
-ref_delta_x, ref_delta_y = convert_ra_dec_to_x_y(ref_delta_ra, ref_delta_dec, ROTATION, IMAGE_SCALE)
-# Update FITS keywords and save image
-header.set('SUN-X', ref_x_c + ref_delta_x, 'X-coordinate of the sun center.')
-header.set('SUN-Y', ref_y_c + ref_delta_y, 'Y-coordinate of the sun center.')
-save_as_fits(img, header, os.path.join(SUN_DIR, REF_FILENAME))
+            # SUN ALIGNMENT
+            if filename == ref_filename:
+                delta_x, delta_y = ref_delta_x, ref_delta_y
+                sun_x, sun_y = ref_sun_x, ref_sun_y
+                registered_img = img
+            else:
+                time = Time(header["DATE-OBS"], scale='utc') - time_offset
+                delta_x, delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(time, location), rotation, image_scale)
+                sun_x, sun_y = moon_x + delta_x, moon_y + delta_y
+                registered_img = translate(img, ref_sun_x - sun_x, ref_sun_y - sun_y)
+            # Update FITS keywords and save image
+            header.set('MOON-X', ref_sun_x - delta_x, 'X-coordinate of the moon center.')
+            header.set('MOON-Y', ref_sun_y - delta_y, 'Y-coordinate of the moon center.')
+            header.set('SUN-X', ref_sun_x, 'X-coordinate of the sun center.')
+            header.set('SUN-Y', ref_sun_y, 'Y-coordinate of the sun center.')
+            header.set('TRANS-X', ref_sun_x - sun_x, 'X-translation applied during registration.')
+            header.set('TRANS-Y', ref_sun_y - sun_y, 'Y-translation applied during registration.')
+            save_as_fits(registered_img, header, os.path.join(sun_dir, filename))
 
-dirpath, _, filenames = next(os.walk(INPUT_DIR)) # not going into subfolders
-for filename in filenames:
-    if filename.endswith('.fits') and filename != REF_FILENAME:
+if __name__ == "__main__":
 
-        # MOON ALIGNMENT
-        img, header = read_fits_as_float(os.path.join(dirpath, filename))
-        x_c, y_c, _ = moon_detection(prepare_img_for_detection(img, min_clipped_pixels), moon_radius_pixels)
-        dx, dy = ref_x_c - x_c, ref_y_c - y_c
-        registered_img = translate(img, dx, dy)
-        # Update FITS keywords and save image
-        header.set('MOON-X', ref_x_c, 'X-coordinate of the moon center.')
-        header.set('MOON-Y', ref_y_c, 'Y-coordinate of the moon center.')
-        header.set('TRANS-X', dx, 'X-translation applied during registration.')
-        header.set('TRANS-Y', dy, 'Y-translation applied during registration.')
-        save_as_fits(registered_img, header, os.path.join(MOON_DIR, filename))
+    from parameters import IMAGE_SCALE, ROTATION
+    from parameters import TIME_OFFSET, LATITUDE, LONGITUDE
+    from parameters import INPUT_DIR, MOON_DIR, SUN_DIR
 
-        # SUN ALIGNMENT
-        time = Time(header["DATE-OBS"], scale='utc') - TIME_OFFSET 
-        delta_ra, delta_dec = get_sun_delta(time, location)
-        delta_x, delta_y = convert_ra_dec_to_x_y(delta_ra, delta_dec, ROTATION, IMAGE_SCALE)
-        dx, dy = dx + ref_delta_x - delta_x, dy + ref_delta_y - delta_y
-        registered_img = translate(img, dx, dy)
-        # Update FITS keywords and save image
-        header.set('MOON-X', ref_x_c + ref_delta_x - delta_x, 'X-coordinate of the moon center.')
-        header.set('MOON-Y', ref_y_c + ref_delta_y - delta_y, 'Y-coordinate of the moon center.')
-        header.set('SUN-X', ref_x_c + ref_delta_x, 'X-coordinate of the sun center.')
-        header.set('SUN-Y', ref_y_c + ref_delta_y, 'Y-coordinate of the sun center.')
-        header.set('TRANS-X', dx, 'X-translation applied during registration.')
-        header.set('TRANS-Y', dy, 'Y-translation applied during registration.')
-        save_as_fits(registered_img, header, os.path.join(SUN_DIR, filename))
+    REF_FILENAME = "0.01667s_2024-04-09_02h42m25s.fits"
+
+    main(INPUT_DIR,
+         MOON_DIR,
+         SUN_DIR,
+         LATITUDE,
+         LONGITUDE,
+         TIME_OFFSET,
+         ROTATION,
+         IMAGE_SCALE,
+         REF_FILENAME)

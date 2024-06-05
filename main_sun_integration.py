@@ -1,8 +1,8 @@
 import os
 import numpy as np
 
-from disk import linear_falloff_disk
-from utils import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
+from lib.disk import linear_falloff_disk
+from lib.fits import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
 from parameters import MOON_RADIUS_DEGREE
 from parameters import IMAGE_SCALE
 from parameters import SUN_DIR, SUN_STACKS_DIR
@@ -19,11 +19,11 @@ os.makedirs(SUN_STACKS_DIR, exist_ok=True)
 # Make a dictionary that contains for each group (key) a list of associated filepaths (value)
 grouped_filepaths = get_grouped_filepaths(SUN_DIR, GROUP_KEYWORDS)
 
-for group_name in grouped_filepaths.keys():
+for group_key in grouped_filepaths.keys():
     # Need header to get image shape, and info about group
-    header = read_fits_header(grouped_filepaths[group_name][0])
+    header = read_fits_header(grouped_filepaths[group_key][0])
     shape = (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"])
-    print(f"Stacking images from group {group_name} :")
+    print(f"Stacking images from group {group_key} :")
     for keyword in GROUP_KEYWORDS:
         print(f"    - {keyword} : {header[keyword]}")
     # Initialize stuff
@@ -32,7 +32,7 @@ for group_name in grouped_filepaths.keys():
     sum_weights = np.zeros(shape[0:2])
     max_dist_to_moon_center = np.zeros(shape[0:2])
     # Loop over subs
-    for filepath in grouped_filepaths[group_name]:
+    for filepath in grouped_filepaths[group_key]:
         # Read image
         img, header = read_fits_as_float(filepath)
         # Get the moon center coordinates of the current frame
@@ -66,4 +66,5 @@ for group_name in grouped_filepaths.keys():
     merged_img[sum_weights == 0] = filler_img[sum_weights == 0]
 
     output_header = extract_subheader(header, GROUP_KEYWORDS+["PEDESTAL", "SUN-X", "SUN-Y"]) # common keywords
+    group_name = " - ".join([f"{GROUP_KEYWORDS[i]} {group_key[i]}" for i in range(len(group_key))])
     save_as_fits(merged_img, output_header, os.path.join(SUN_STACKS_DIR, f"{group_name}.fits"))
