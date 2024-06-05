@@ -29,7 +29,6 @@ The script `main_registration.py` simultaneously performs a moon-based and a sun
 
 Extra parameters (defined at the top of the script) :
 - `REF_FILENAME` : The registration is based on a reference image located at <`INPUT_DIR`>/<`REF_FILENAME`>.
-- `CLIP_MOON_RADII` : A value above 1. To facilitate the detection of the moon, a preprocessing step will first attempt to clip the pixels that are in an annulus around the moon. This annulus has an outer radius equal to the moon radius multiplied by `CLIP_MOON_RADII`.
 
 ## Integration
 
