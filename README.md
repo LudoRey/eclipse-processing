@@ -27,7 +27,7 @@ Each script contains its own set of parameters, listed at the top of the file. M
 
 The script `main_registration.py` simultaneously performs a moon-based and a sun-based registration of the input images located in `INPUT_DIR`. The output directories are defined by `MOON_DIR` and `SUN_DIR`.
 
-Extra parameters (defined at the top of the script) :
+Extra parameters (defined at the bottom of the script) :
 - `REF_FILENAME` : The registration is based on a reference image located at <`INPUT_DIR`>/<`REF_FILENAME`>.
 
 ## Integration
