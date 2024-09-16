@@ -1,5 +1,5 @@
 import numpy as np
-from utils import Timer
+from .utils import Timer
 from scipy.ndimage import gaussian_filter
 
 def achf_kernel_at_ij(i, j, theta, rho, sigma, sun_radius=141.4213562373095, return_components=False):

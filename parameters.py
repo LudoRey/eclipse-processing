@@ -2,7 +2,7 @@ from astropy.time import Time
 
 # Platesolved parameters
 IMAGE_SCALE = 5.89 # image scale in arcsec/pixels
-ROTATION = 44.045 # given by PixInsight !!
+ROTATION = 44.042 # given by PixInsight !!
 
 # Time and location
 ref_time_utc = '2024-04-08 19:29:25' # Known time (UTC !!)

@@ -1,10 +1,23 @@
 import numpy as np
 import os
 from astropy.io import fits
+from .utils import cprint
+
+def read_fits(filepath, verbose=True):
+    if verbose:
+        cprint(f"Opening {filepath}...", color="green")
+    # Open image/header
+    with fits.open(filepath) as hdul:
+        header = hdul[0].header
+        img = hdul[0].data
+    # If color image : CxHxW -> HxWxC
+    if len(img.shape) == 3:
+        img = np.moveaxis(img, 0, 2)
+    return img, header
 
 def read_fits_as_float(filepath, rows_range=None, verbose=True):
     if verbose:
-        print(f"Opening {filepath}...")
+        cprint(f"Opening {filepath}...", color="green")
     # Open image/header
     with fits.open(filepath) as hdul:
         header = hdul[0].header
@@ -41,8 +54,10 @@ def save_as_fits(img, header, filepath, convert_to_uint16=True):
     hdu = fits.PrimaryHDU(data=img, header=header)
     hdu.writeto(filepath, overwrite=True)
 
-def read_fits_header(filepath):
-    with fits.open(filepath) as hdul:
+def read_fits_header(filepath, verbose=False, cache=False):
+    if verbose:
+        cprint(f"Opening {filepath}...", color="green")
+    with fits.open(filepath, cache=cache) as hdul:
         header = hdul[0].header
     return header
 
@@ -132,5 +147,7 @@ def format_keyword_value(keyword_value, keyword):
         return f"{keyword_value:.5f}"
     elif keyword == "ISOSPEED" or keyword == "GAIN":
         return f"{int(keyword_value)}"
+    elif keyword == "DATE-OBS":
+        return keyword_value.replace("T", " ")
     else:
         return f"{keyword_value}"

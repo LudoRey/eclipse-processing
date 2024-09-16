@@ -35,7 +35,8 @@ def main(input_dir,
 
     dirpath, _, filenames = next(os.walk(input_dir)) # not going into subfolders
     for filename in filenames:
-        if filename.endswith('.fits') and filename.startswith('0.00025s'):
+        if filename == "0.25000s_2024-04-09_02h42m31s.fits" or filename == "0.25000s_2024-04-09_02h40m33s.fits":
+        #if filename.endswith('.fits') and filename.startswith('0.00025s'):
 
             img, header = read_fits_as_float(os.path.join(dirpath, filename))
 
