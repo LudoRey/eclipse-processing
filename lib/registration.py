@@ -4,9 +4,9 @@ from skimage.feature import canny
 from skimage import measure, transform
 from scipy import ndimage
 
-from .display import center_crop
-from .disk import binary_disk
-from .polar import warp_cart_to_polar
+from lib.display import center_crop
+from lib.disk import binary_disk
+from lib.polar import warp_cart_to_polar
 
 from astropy.coordinates import EarthLocation, get_body
 from astropy.time import Time
