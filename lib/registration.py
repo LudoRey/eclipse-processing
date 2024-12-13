@@ -2,6 +2,11 @@ import numpy as np
 
 from skimage.feature import canny
 from skimage import measure, transform
+from scipy import ndimage
+
+from .display import center_crop
+from .disk import binary_disk
+from .polar import warp_cart_to_polar
 
 from astropy.coordinates import EarthLocation, get_body
 from astropy.time import Time
@@ -136,3 +141,66 @@ def convert_angular_offset_to_x_y(offset_scalar, offset_angle, camera_rotation, 
 #                                     [np.sin(theta),  -np.cos(theta)]])
 #     ra_dec = rotation_flip_matrix @ x_y * image_scale
 #     return ra_dec[0], ra_dec[1]
+
+def phase_correlation(img1, img2):
+    # Compute cross-power spectrum
+    f1 = np.fft.fft2(img1)
+    f2 = np.fft.fft2(img2)
+    cross_power_spectrum = (f1 * np.conj(f2)) / np.abs(f1 * np.conj(f2))
+    
+    # Find maximum response
+    impulse_img = np.fft.ifft2(cross_power_spectrum)
+    dx, dy = np.unravel_index(np.argmax(np.abs(impulse_img)), impulse_img.shape) # (y,x) coords
+    return dx, dy
+
+def prep_for_rotation(img, moon_mask, saturation_value=0.11):
+    print("Preparing image...")
+    # Convert to grayscale
+    if len(img.shape) == 3:
+        img = img.mean(axis=2)
+
+    # Mask out the moon and saturated pixels (set to a constant saturation_value)
+    saturation_mask = img >= saturation_value
+    mask = saturation_mask | moon_mask
+    img[mask] = saturation_value
+    # High-pass filter
+    #img = img - ndimage.gaussian_filter(img, sigma=4)
+    # Window to attenuate border discontinuities
+    window = np.outer(np.hanning(img.shape[0]), np.hanning(img.shape[1])).reshape(img.shape)
+    img = img*window
+
+    return img
+
+def fft_logmag(img):
+    print("Computing FFT...")
+    fft = np.fft.fft2(img, axes=[0,1])
+    fft_mag = np.abs(fft)
+    fft_mag = np.fft.fftshift(fft_mag)
+    return np.log1p(fft_mag)
+
+def highpass_filter(spectrum, frequency):
+    M, N = spectrum.shape 
+    u = np.linspace(-0.5, 0.5, M)
+    v = np.linspace(-0.5, 0.5, N)
+    U, V = np.meshgrid(u, v)
+
+    D2 = U**2 + V**2
+    H = 1 - np.exp(-D2 / (2*frequency**2))
+    return H*spectrum
+
+def polar_transform(img):
+    # Polar transform centered in the middle of the image
+    y_c, x_c = img.shape[0] // 2, img.shape[1] // 2
+    output_shape = [3600, 3600]
+    polar_img, theta_factor, rho_factor = warp_cart_to_polar(img, x_c, y_c, output_shape, return_factors=True, log_scaling=False)
+    # Inscribed circle only (warp_cart_to_polar returns circumscribed)
+    border_rho = min(img.shape[0] - y_c, img.shape[1] - x_c) 
+    polar_img = polar_img[:,:int(np.ceil(border_rho*rho_factor))]
+    return polar_img
+
+def subpixel_maximum(values):
+    # Initial guess
+    x0 = np.argmax(values)
+    # Quadratic fit
+    x = x0 - (values[x0+1] - values[x0-1]) / (2*(values[x0+1] - 2*values[x0] + values[x0-1]))
+    return x

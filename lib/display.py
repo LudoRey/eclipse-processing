@@ -16,7 +16,7 @@ def compute_statistics(x):
     statistics["max"] = x.max()
     return statistics
 
-def auto_ht_params(x, statistics, clip_from_median=2.8, target_median=0.25):       
+def auto_ht_params(statistics, clip_from_median=2.8, target_median=0.25):       
     vmax = statistics["max"]
     vmin = statistics["median"] - clip_from_median*statistics["MAD"]
     # Update median
