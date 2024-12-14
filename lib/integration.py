@@ -1,4 +1,4 @@
-from lib.utils import read_fits_as_float, read_fits_header
+from .utils import read_fits_as_float, read_fits_header
 import numpy as np
 
 
