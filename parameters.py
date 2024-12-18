@@ -5,9 +5,8 @@ IMAGE_SCALE = 5.89 # image scale in arcsec/pixels
 ROTATION = 44.042 # given by PixInsight !!
 
 # Time and location
-ref_time_utc = '2024-04-08 19:29:25' # Known time (UTC !!)
-ref_time_measured = '2024-04-09 02:39:56' # Measured time (doesnt need to be super precise)
-TIME_OFFSET = Time(ref_time_measured, scale='utc') - Time(ref_time_utc, scale='utc') # do not modify this line
+MEASURED_TIME = '2024-04-09 02:39:56' # Measured time (doesnt need to be super precise)
+UTC_TIME = '2024-04-08 19:29:25' # Known time (UTC !!)
 
 LATITUDE = 45.93664
 LONGITUDE = -70.48483

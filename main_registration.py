@@ -3,15 +3,16 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from lib.registration import translate, moon_detection, convert_angular_offset_to_x_y, get_sun_moon_offset, get_moon_radius
-from lib.fits import read_fits_as_float, save_as_fits
+from .lib.registration import translate, moon_detection, convert_angular_offset_to_x_y, get_sun_moon_offset, get_moon_radius
+from .lib.fits import read_fits_as_float, save_as_fits
 
 def main(input_dir,
          moon_dir,
          sun_dir,
          latitude,
          longitude,
-         time_offset,
+         measured_time,
+         utc_time,
          rotation,
          image_scale,
          ref_filename):
@@ -20,6 +21,7 @@ def main(input_dir,
     os.makedirs(sun_dir, exist_ok=True)
     
     location = EarthLocation(lat=latitude, lon=longitude, height=0)
+    time_offset = Time(measured_time, scale='utc') - Time(utc_time, scale='utc')
 
     # Load reference image
     img, header = read_fits_as_float(os.path.join(input_dir, ref_filename))
@@ -76,7 +78,7 @@ def main(input_dir,
 if __name__ == "__main__":
 
     from parameters import IMAGE_SCALE, ROTATION
-    from parameters import TIME_OFFSET, LATITUDE, LONGITUDE
+    from parameters import MEASURED_TIME, UTC_TIME, LATITUDE, LONGITUDE
     from parameters import INPUT_DIR, MOON_DIR, SUN_DIR
 
     REF_FILENAME = "0.01667s_2024-04-09_02h42m25s.fits"
@@ -86,7 +88,8 @@ if __name__ == "__main__":
          SUN_DIR,
          LATITUDE,
          LONGITUDE,
-         TIME_OFFSET,
+         MEASURED_TIME,
+         UTC_TIME,
          ROTATION,
          IMAGE_SCALE,
          REF_FILENAME)
