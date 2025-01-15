@@ -56,7 +56,6 @@ def warp_cart_to_polar(img, x_c, y_c, output_shape, order=1, mode='reflect', ret
     theta_factor = output_shape[0] / (2 * np.pi)
     rho_factor = output_shape[1] / max_rho
     # Warp image
-    print("Warping image to polar coordinates...")
     warp_args = {'x_c': x_c, 'y_c': y_c, 'theta_factor': theta_factor, 'rho_factor': rho_factor, 'log_scaling': log_scaling}
     warped_img = warp(img, inverse_map=coords_polar_to_cart, map_args=warp_args, output_shape=output_shape, mode=mode, order=order)
     if return_factors:
@@ -75,7 +74,6 @@ def warp_polar_to_cart(img, x_c, y_c, output_shape, order=1, log_scaling=False):
     theta_factor = img.shape[0] / (2 * np.pi)
     rho_factor = img.shape[1] / max_rho
     # Warp image
-    print("Warping image to cartesian coordinates...")
     warp_args = {'x_c': x_c, 'y_c': y_c, 'theta_factor': theta_factor, 'rho_factor': rho_factor, 'log_scaling': log_scaling}
     warped_img = warp(img, inverse_map=coords_cart_to_polar, map_args=warp_args, output_shape=output_shape, mode='wrap', order=order) # wrap padding for 0 = 2pi
     return warped_img

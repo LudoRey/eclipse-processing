@@ -54,6 +54,13 @@ def save_as_fits(img, header, filepath, convert_to_uint16=True):
     hdu = fits.PrimaryHDU(data=img, header=header)
     hdu.writeto(filepath, overwrite=True)
 
+def update_fits_header(filepath, update_dict):
+    cprint(f"Updating FITS header...", color="green")
+    with fits.open(filepath, mode='update') as hdul:
+        header = hdul[0].header
+        for k, v in update_dict.items():
+            header[k] = v
+
 def read_fits_header(filepath, verbose=False, cache=False):
     if verbose:
         cprint(f"Opening {filepath}...", color="green")

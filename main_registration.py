@@ -3,19 +3,21 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from .lib.registration import translate, moon_detection, convert_angular_offset_to_x_y, get_sun_moon_offset, get_moon_radius
-from .lib.fits import read_fits_as_float, save_as_fits
+from .lib.registration import rotate_translate, moon_detection, convert_angular_offset_to_x_y, get_sun_moon_offset, get_moon_radius
+from .lib.fits import read_fits_as_float, save_as_fits, update_fits_header
 
 def main(input_dir,
+         ref_filename,
          moon_dir,
          sun_dir,
          latitude,
          longitude,
          measured_time,
          utc_time,
-         rotation,
-         image_scale,
-         ref_filename):
+         ref_rotation,
+         rotation_rate,
+         image_scale
+         ):
     
     os.makedirs(moon_dir, exist_ok=True)
     os.makedirs(sun_dir, exist_ok=True)
@@ -32,7 +34,7 @@ def main(input_dir,
     # Compute reference moon center
     ref_moon_x, ref_moon_y, _ = moon_detection(img, moon_radius_pixels)
     # Compute reference sun center
-    ref_delta_x, ref_delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(ref_time, location), rotation, image_scale)
+    ref_delta_x, ref_delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(ref_time, location), ref_rotation, image_scale)
     ref_sun_x, ref_sun_y = ref_moon_x + ref_delta_x, ref_moon_y + ref_delta_y
 
     dirpath, _, filenames = next(os.walk(input_dir)) # not going into subfolders
@@ -47,8 +49,17 @@ def main(input_dir,
                 moon_x, moon_y = ref_moon_x, ref_moon_y
                 registered_img = img
             else:
+                time = Time(header["DATE-OBS"], scale='utc') - time_offset
+                rotation = ref_rotation # TODO
+                theta = ref_rotation - rotation
                 moon_x, moon_y, _ = moon_detection(img, moon_radius_pixels)
-                registered_img = translate(img, ref_moon_x - moon_x, ref_moon_y - moon_y)
+                registered_img = rotate_translate(img, theta, ref_moon_x - moon_x, ref_moon_y - moon_y)
+            
+            # TODO : remove lines below, add callbacks ?
+            update_fits_header(os.path.join(dirpath, filename),
+                               {'MOON-X': (moon_x, 'X-coordinate of the moon center.'),
+                                'MOON-Y': (moon_y, 'Y-coordinate of the moon center.')})
+        
             # Update FITS keywords and save image
             header.set('MOON-X', ref_moon_x, 'X-coordinate of the moon center.')
             header.set('MOON-Y', ref_moon_y, 'Y-coordinate of the moon center.')
@@ -62,10 +73,9 @@ def main(input_dir,
                 sun_x, sun_y = ref_sun_x, ref_sun_y
                 registered_img = img
             else:
-                time = Time(header["DATE-OBS"], scale='utc') - time_offset
                 delta_x, delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(time, location), rotation, image_scale)
                 sun_x, sun_y = moon_x + delta_x, moon_y + delta_y
-                registered_img = translate(img, ref_sun_x - sun_x, ref_sun_y - sun_y)
+                registered_img = rotate_translate(img, theta, ref_sun_x - sun_x, ref_sun_y - sun_y)
             # Update FITS keywords and save image
             header.set('MOON-X', ref_sun_x - delta_x, 'X-coordinate of the moon center.')
             header.set('MOON-Y', ref_sun_y - delta_y, 'Y-coordinate of the moon center.')

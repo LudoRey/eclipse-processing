@@ -2,6 +2,8 @@ import numpy as np
 from .utils import Timer
 from scipy.ndimage import gaussian_filter
 
+from .polar import warp_cart_to_polar, warp_polar_to_cart
+
 def achf_kernel_at_ij(i, j, theta, rho, sigma, sun_radius=141.4213562373095, return_components=False):
     rho_center = rho[i,j]
     theta_center = theta[i,j]
@@ -58,8 +60,16 @@ def radial_tangential(img_polar, sigma, rho_0, rho_factor, theta_factor):
     blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), mode='reflect') # radial
     return blurred_img_polar
 
+def tangential_filter(img, x_c, y_c, sigma, output_shape=[1000,1000]):
+    shape = img.shape
+    img = warp_cart_to_polar(img, x_c, y_c, output_shape)
+    img = gaussian_filter(img, sigma, axes=(0,), mode='wrap') # only tangential
+    img = warp_polar_to_cart(img, x_c, y_c, shape)
+    return img
+
 def partial_filter(img, mask, filter_func, filter_args):
     print("Applying partial filter...")
+    mask = mask.astype('float')
     # A partial convolution of an image I by a kernel K and with weights W can be computed as the division of two normal convolutions.
     # Compute the numerator : conv(W*I, K)
     blurred_img = filter_func(mask * img, **filter_args) 
@@ -74,7 +84,6 @@ def partial_filter(img, mask, filter_func, filter_args):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from polar import angle_map, radius_map
-    from utils import crop_inset
 
     SIGMA = 10
 
@@ -94,8 +103,6 @@ if __name__ == "__main__":
     j = [200, 400]
     for k in range(2):
         radial, tangential = achf_kernel_at_ij(i[k], j[k], theta, rho, SIGMA, return_components=True)
-        crop_inset(radial, [i[k],j[k]], [50,50])
-        crop_inset(tangential, [i[k],j[k]], [50,50])
         axes1[k,0].imshow(radial); axes1[0,0].set_title("Radial component")
         axes1[k,1].imshow(tangential); axes1[0,1].set_title("Tangential component")
         axes1[k,2].imshow(radial*tangential); axes1[0,2].set_title("Kernel")
