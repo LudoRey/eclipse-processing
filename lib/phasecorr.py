@@ -1,10 +1,8 @@
 import numpy as np
 
 from .disk import binary_disk
-from .polar import warp_cart_to_polar, warp_polar_to_cart
-from .filters import tangential_filter, gaussian_filter, partial_filter
-
-from skimage import morphology
+from .polar import warp_cart_to_polar
+from .filters import tangential_filter
 
 def prep_for_fft(img, header, saturation_value=0.11):
     print("Preparing image...")
@@ -24,40 +22,6 @@ def prep_for_fft(img, header, saturation_value=0.11):
     window = np.outer(np.hanning(img.shape[0]), np.hanning(img.shape[1])).reshape(img.shape)
     img = img*window
 
-    return img
-
-def prep_for_registration(img, header, clipping_value):
-    print("Preparing image for registration...")
-    # Convert to grayscale
-    if len(img.shape) == 3:
-        img = img.mean(axis=2)
-
-    # Clip the moon and its surroundings
-    moon_mask = binary_disk(header["MOON-X"], header["MOON-Y"], header["MOON-R"]*1.05, img.shape)
-    clipping_mask = img >= clipping_value # should surround the moon_mask
-    mask = clipping_mask | moon_mask
-    img[mask] = clipping_value
-    # High-pass filter
-    img = img - tangential_filter(img, header["MOON-X"], header["MOON-Y"], sigma=10)
-    return img # np.stack([mask, moon_mask, ext_moon_mask], axis=2, dtype=float)
-
-def get_moon_clipping_value(img, header):
-    # Convert to grayscale
-    if len(img.shape) == 3:
-        img = img.mean(axis=2)
-    # Find clipping value that surrounds the 1.05R moon masks
-    # The moon moves by less than 0.1R (~0.05R) during the eclipse : hence all moon masks will be contained by ext_moon_mask
-    moon_mask = binary_disk(header["MOON-X"], header["MOON-Y"], header["MOON-R"]*1.05, img.shape) 
-    ext_moon_mask = binary_disk(header["MOON-X"], header["MOON-Y"], header["MOON-R"]*1.15, img.shape) 
-    moon_mask_border = ext_moon_mask & ~moon_mask
-    clipping_value = np.min(img[moon_mask_border])
-    return clipping_value 
-
-def correlation(img1, img2):
-    img1 = np.fft.fft2(img1) # Spectrum of image 1
-    img2 = np.fft.fft2(img2) # Spectrum of image 2
-    img = (img1 * np.conj(img2)) # Correlation spectrum
-    img = np.real(np.fft.ifft2(img)) # Correlation image
     return img
 
 def phase_correlation(img1, img2):

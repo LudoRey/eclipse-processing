@@ -60,9 +60,9 @@ def radial_tangential(img_polar, sigma, rho_0, rho_factor, theta_factor):
     blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), mode='reflect') # radial
     return blurred_img_polar
 
-def tangential_filter(img, x_c, y_c, sigma, output_shape=[1000,1000]):
+def tangential_filter(img, x_c, y_c, sigma, output_shape=[1000,2000]):
     shape = img.shape
-    img = warp_cart_to_polar(img, x_c, y_c, output_shape)
+    img = warp_cart_to_polar(img, x_c, y_c, output_shape, mode='edge')
     img = gaussian_filter(img, sigma, axes=(0,), mode='wrap') # only tangential
     img = warp_polar_to_cart(img, x_c, y_c, shape)
     return img

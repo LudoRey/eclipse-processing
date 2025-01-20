@@ -41,11 +41,11 @@ def coords_polar_to_cart(polar_coords, x_c, y_c, theta_factor, rho_factor, log_s
     if log_scaling:
         rho = np.exp(rho)
     x = rho * np.cos(theta) + x_c
-    y = rho * np.sin(theta) + y_c # minus sign because y is reversed in image coordinates
+    y = rho * np.sin(theta) + y_c
     cart_coords = np.column_stack((x, y))
     return cart_coords
 
-def warp_cart_to_polar(img, x_c, y_c, output_shape, order=1, mode='reflect', return_factors=False, log_scaling=False):
+def warp_cart_to_polar(img, x_c, y_c, output_shape, return_factors=False, log_scaling=False, **kwargs):
     # Compute maximum/minimum distance to the center
     corner_pts = np.array([[0, 0],[0, img.shape[1]],[img.shape[0], 0], [img.shape[0], img.shape[1]]])
     corner_dist = np.sqrt(np.sum((corner_pts - np.array([y_c, x_c]))**2, axis=1)) # (4) array
@@ -53,17 +53,17 @@ def warp_cart_to_polar(img, x_c, y_c, output_shape, order=1, mode='reflect', ret
     if log_scaling:
         max_rho = np.log(max_rho)
     # Define scaling factors
-    theta_factor = output_shape[0] / (2 * np.pi)
-    rho_factor = output_shape[1] / max_rho
+    theta_factor = (output_shape[0] - 1) / (2 * np.pi)
+    rho_factor = (output_shape[1] - 1) / max_rho
     # Warp image
     warp_args = {'x_c': x_c, 'y_c': y_c, 'theta_factor': theta_factor, 'rho_factor': rho_factor, 'log_scaling': log_scaling}
-    warped_img = warp(img, inverse_map=coords_polar_to_cart, map_args=warp_args, output_shape=output_shape, mode=mode, order=order)
+    warped_img = warp(img, inverse_map=coords_polar_to_cart, map_args=warp_args, output_shape=output_shape, **kwargs)
     if return_factors:
         return warped_img, theta_factor, rho_factor 
     else:
         return warped_img
 
-def warp_polar_to_cart(img, x_c, y_c, output_shape, order=1, log_scaling=False):
+def warp_polar_to_cart(img, x_c, y_c, output_shape, log_scaling=False, **kwargs):
     # Compute maximum distance to the center
     corner_pts = np.array([[0, 0],[0, output_shape[1]],[output_shape[0], 0], [output_shape[0], output_shape[1]]])
     corner_dist = np.sqrt(np.sum((corner_pts - np.array([y_c, x_c]))**2, axis=1))
@@ -71,9 +71,9 @@ def warp_polar_to_cart(img, x_c, y_c, output_shape, order=1, log_scaling=False):
     if log_scaling:
         max_rho = np.log(max_rho)
     # Define scaling factors
-    theta_factor = img.shape[0] / (2 * np.pi)
-    rho_factor = img.shape[1] / max_rho
+    theta_factor = (img.shape[0] - 1) / (2 * np.pi)
+    rho_factor = (img.shape[1] - 1) / max_rho
     # Warp image
     warp_args = {'x_c': x_c, 'y_c': y_c, 'theta_factor': theta_factor, 'rho_factor': rho_factor, 'log_scaling': log_scaling}
-    warped_img = warp(img, inverse_map=coords_cart_to_polar, map_args=warp_args, output_shape=output_shape, mode='wrap', order=order) # wrap padding for 0 = 2pi
+    warped_img = warp(img, inverse_map=coords_cart_to_polar, map_args=warp_args, output_shape=output_shape, mode='wrap', **kwargs) # wrap padding for 0 = 2pi
     return warped_img
