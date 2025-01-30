@@ -1,13 +1,13 @@
 import numpy as np
 import os
-from astropy.io import fits
+import astropy.io.fits
 from .utils import cprint
 
 def read_fits(filepath, verbose=True):
     if verbose:
         cprint(f"Opening {filepath}...", color="green")
     # Open image/header
-    with fits.open(filepath) as hdul:
+    with astropy.io.fits.open(filepath) as hdul:
         header = hdul[0].header
         img = hdul[0].data
     # If color image : CxHxW -> HxWxC
@@ -19,7 +19,7 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True):
     if verbose:
         cprint(f"Opening {filepath}...", color="green")
     # Open image/header
-    with fits.open(filepath) as hdul:
+    with astropy.io.fits.open(filepath) as hdul:
         header = hdul[0].header
         if rows_range is None:
             img = hdul[0].data
@@ -51,12 +51,12 @@ def save_as_fits(img, header, filepath, convert_to_uint16=True):
         img = (np.clip(img, 0, 1)*65535).astype('uint16')
     if len(img.shape) == 3:
         img = np.moveaxis(img, 2, 0)
-    hdu = fits.PrimaryHDU(data=img, header=header)
+    hdu = astropy.io.fits.PrimaryHDU(data=img, header=header)
     hdu.writeto(filepath, overwrite=True)
 
 def update_fits_header(filepath, update_dict):
     cprint(f"Updating FITS header...", color="green")
-    with fits.open(filepath, mode='update') as hdul:
+    with astropy.io.fits.open(filepath, mode='update') as hdul:
         header = hdul[0].header
         for k, v in update_dict.items():
             header[k] = v
@@ -64,7 +64,7 @@ def update_fits_header(filepath, update_dict):
 def read_fits_header(filepath, verbose=False, cache=False):
     if verbose:
         cprint(f"Opening {filepath}...", color="green")
-    with fits.open(filepath, cache=cache) as hdul:
+    with astropy.io.fits.open(filepath, cache=cache) as hdul:
         header = hdul[0].header
     return header
 
@@ -73,7 +73,7 @@ def extract_subheader(header, keys):
     for k in keys:
         if k in header.keys():
             kv_dict[k] = header[k]
-    subheader = fits.Header(kv_dict)
+    subheader = astropy.io.fits.Header(kv_dict)
     return subheader
 
 def combine_headers(header1, header2):
@@ -83,7 +83,7 @@ def combine_headers(header1, header2):
         kv_dict[k] = header1[k]
     for k in header2.keys():
         kv_dict[k] = header2[k]
-    header = fits.Header(kv_dict)
+    header = astropy.io.fits.Header(kv_dict)
     return header
 
 def get_grouped_filepaths(dirname, keywords, output_format="collapsed_dict"):

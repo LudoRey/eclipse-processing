@@ -14,10 +14,11 @@ def main(input_dir, ref_filename, other_filenames):
     
     # Load reference image
     ref_img, ref_header = read_fits_as_float(os.path.join(input_dir, ref_filename))
-    # TODO Center on the moon and crop 
-    moon_x, moon_y = ref_header["MOON-X"], ref_header["MOON-Y"]
-    w, h = 1024, 1024
-    ref_img, ref_header = center_crop(ref_img, int(moon_x), int(moon_y), w, h, ref_header)
+    h,w = ref_img.shape[0:2]
+    # # TODO Center on the moon and crop 
+    # moon_x, moon_y = ref_header["MOON-X"], ref_header["MOON-Y"]
+    # w, h = 1024, 1024
+    # ref_img, ref_header = center_crop(ref_img, int(moon_x), int(moon_y), w, h, ref_header)
     # Get clipping value (for all images)
     clipping_value = get_moon_clipping_value(ref_img, ref_header) # Possible bug : dead pixels
     # Prepare image for registration
@@ -26,10 +27,10 @@ def main(input_dir, ref_filename, other_filenames):
     for filename in other_filenames:
         # Load image
         img, header = read_fits_as_float(os.path.join(input_dir, filename))
-        # TODO Center on the moon and crop 
-        moon_x, moon_y = header["MOON-X"], header["MOON-Y"]
-        w, h = 1024, 1024
-        img, header = center_crop(img, int(moon_x), int(moon_y), w, h, header)
+        # # TODO Center on the moon and crop 
+        # moon_x, moon_y = header["MOON-X"], header["MOON-Y"]
+        # w, h = 1024, 1024
+        # img, header = center_crop(img, int(moon_x), int(moon_y), w, h, header)
         # Prepare image for registration
         img = prep_for_registration(img, header, clipping_value)
 
@@ -45,28 +46,6 @@ def main(input_dir, ref_filename, other_filenames):
         # We use it as an initial guess for the optimization-based approach
         obj = DiscreteRigidRegistrationObjective(ref_img, img)
         x0 = obj.convert_params_to_x(theta, tx, ty)
-
-        # Grid search registration
-        num = 5
-        theta_range = np.linspace(-np.deg2rad(0.062), -np.deg2rad(0.067), num)
-        tx_range = np.linspace(tx+0.16, tx+0.21, num)
-        ty_range = np.linspace(ty+0.26, ty+0.31, num)
-
-        values = np.zeros((num, num, num))
-        for i, theta in enumerate(theta_range):
-            for j, tx in enumerate(tx_range):
-                for k, ty in enumerate(ty_range):
-                    values[i,j,k] = obj.value(obj.convert_params_to_x(theta, tx, ty))
-
-        # Optimization-based registration
-
-        # def callback(x):
-        #     print(x)
-        #     print(obj.value(x), obj.grad(x))
-        # callback(x0)
-        
-        # result = scipy.optimize.minimize(obj.value, x0, jac=obj.grad, callback=callback, options={'disp': True})
-        # x = result.x # estimated parameters of the transform ref_img -> img
 
         x = line_search_gradient_descent(x0, obj.value, obj.grad)
         theta, tx, ty = obj.convert_x_to_params(x)
@@ -104,6 +83,18 @@ def main(input_dir, ref_filename, other_filenames):
     # r = 4
     # rolled_img = np.roll(np.roll(correlation_img, -ty+r, axis=0), -tx+r, axis=1)[:2*r+1, :2*r+1]
     # ax.imshow(rolled_img, extent=[tx-r, tx+r, ty+r, ty-r])
+
+    # Grid search registration
+    num = 5
+    theta_range = np.linspace(-np.deg2rad(0.062), -np.deg2rad(0.067), num)
+    tx_range = np.linspace(tx+0.16, tx+0.21, num)
+    ty_range = np.linspace(ty+0.26, ty+0.31, num)
+
+    values = np.zeros((num, num, num))
+    # for i, theta in enumerate(theta_range):
+    #     for j, tx in enumerate(tx_range):
+    #         for k, ty in enumerate(ty_range):
+    #             values[i,j,k] = obj.value(obj.convert_params_to_x(theta, tx, ty))
 
     fig3, ax3 = plt.subplots(subplot_kw={"projection": "3d"})
 

@@ -1,105 +1,56 @@
 import os
 import numpy as np
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
+import skimage as sk
+from scipy import ndimage as ndi
+from matplotlib import pyplot as plt, animation as anim
 
-from .lib.registration import rotate_translate, moon_detection, convert_angular_offset_to_x_y, get_sun_moon_offset, get_moon_radius
-from .lib.fits import read_fits_as_float, save_as_fits, update_fits_header
+from lib import fits, display
+from lib.registration import sun, transform
 
-def main(input_dir,
-         ref_filename,
-         moon_dir,
-         sun_dir,
-         latitude,
-         longitude,
-         measured_time,
-         utc_time,
-         ref_rotation,
-         rotation_rate,
-         image_scale
-         ):
-    
-    os.makedirs(moon_dir, exist_ok=True)
-    os.makedirs(sun_dir, exist_ok=True)
-    
-    location = EarthLocation(lat=latitude, lon=longitude, height=0)
-    time_offset = Time(measured_time, scale='utc') - Time(utc_time, scale='utc')
-
+def main(input_dir, ref_filename, other_filenames):
     # Load reference image
-    img, header = read_fits_as_float(os.path.join(input_dir, ref_filename))
-    ref_time = Time(header["DATE-OBS"], scale='utc') - time_offset
-    # Retrieve apparent moon radius
-    moon_radius_degree = get_moon_radius(ref_time, location)
-    moon_radius_pixels = moon_radius_degree * 3600 / image_scale
-    # Compute reference moon center
-    ref_moon_x, ref_moon_y, _ = moon_detection(img, moon_radius_pixels)
-    # Compute reference sun center
-    ref_delta_x, ref_delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(ref_time, location), ref_rotation, image_scale)
-    ref_sun_x, ref_sun_y = ref_moon_x + ref_delta_x, ref_moon_y + ref_delta_y
+    ref_img, ref_header = fits.read_fits_as_float(os.path.join(input_dir, ref_filename))
 
-    dirpath, _, filenames = next(os.walk(input_dir)) # not going into subfolders
-    for filename in filenames:
-        if filename == "0.25000s_2024-04-09_02h42m31s.fits" or filename == "0.25000s_2024-04-09_02h40m33s.fits":
-        #if filename.endswith('.fits') and filename.startswith('0.00025s'):
+    w, h = 1024, 1024
+    #ref_img, ref_header = display.center_crop(ref_img, int(ref_header["MOON-X"]), int(ref_header["MOON-Y"]), w, h, ref_header)
 
-            img, header = read_fits_as_float(os.path.join(dirpath, filename))
+    clipping_value = sun.get_clipping_value(ref_img, ref_header)
+    ref_img = sun.preprocess(ref_img, ref_header, clipping_value)
+    INTERFACE.imshow(ref_img)
 
-            # MOON ALIGNMENT
-            if filename == ref_filename:
-                moon_x, moon_y = ref_moon_x, ref_moon_y
-                registered_img = img
-            else:
-                time = Time(header["DATE-OBS"], scale='utc') - time_offset
-                rotation = ref_rotation # TODO
-                theta = ref_rotation - rotation
-                moon_x, moon_y, _ = moon_detection(img, moon_radius_pixels)
-                registered_img = rotate_translate(img, theta, ref_moon_x - moon_x, ref_moon_y - moon_y)
-            
-            # TODO : remove lines below, add callbacks ?
-            update_fits_header(os.path.join(dirpath, filename),
-                               {'MOON-X': (moon_x, 'X-coordinate of the moon center.'),
-                                'MOON-Y': (moon_y, 'Y-coordinate of the moon center.')})
-        
-            # Update FITS keywords and save image
-            header.set('MOON-X', ref_moon_x, 'X-coordinate of the moon center.')
-            header.set('MOON-Y', ref_moon_y, 'Y-coordinate of the moon center.')
-            header.set('TRANS-X', ref_moon_x - moon_x, 'X-translation applied during registration.')
-            header.set('TRANS-Y', ref_moon_y - moon_y, 'Y-translation applied during registration.')
-            save_as_fits(registered_img, header, os.path.join(moon_dir, filename))
+    for filename in other_filenames:
+        img, header = fits.read_fits_as_float(os.path.join(input_dir, filename))
+        #img, header = display.center_crop(img, int(header["MOON-X"]), int(header["MOON-Y"]), w, h, header)
+        img = sun.preprocess(img, header, clipping_value)
+        theta, tx, ty = sun.register(img, ref_img, rotation_center=(header["MOON-X"], header["MOON-Y"]))
+        print(np.rad2deg(theta), tx, ty)
 
-            # SUN ALIGNMENT
-            if filename == ref_filename:
-                delta_x, delta_y = ref_delta_x, ref_delta_y
-                sun_x, sun_y = ref_sun_x, ref_sun_y
-                registered_img = img
-            else:
-                delta_x, delta_y = convert_angular_offset_to_x_y(*get_sun_moon_offset(time, location), rotation, image_scale)
-                sun_x, sun_y = moon_x + delta_x, moon_y + delta_y
-                registered_img = rotate_translate(img, theta, ref_sun_x - sun_x, ref_sun_y - sun_y)
-            # Update FITS keywords and save image
-            header.set('MOON-X', ref_sun_x - delta_x, 'X-coordinate of the moon center.')
-            header.set('MOON-Y', ref_sun_y - delta_y, 'Y-coordinate of the moon center.')
-            header.set('SUN-X', ref_sun_x, 'X-coordinate of the sun center.')
-            header.set('SUN-Y', ref_sun_y, 'Y-coordinate of the sun center.')
-            header.set('TRANS-X', ref_sun_x - sun_x, 'X-translation applied during registration.')
-            header.set('TRANS-Y', ref_sun_y - sun_y, 'Y-translation applied during registration.')
-            save_as_fits(registered_img, header, os.path.join(sun_dir, filename))
+        tform = transform.centered_rigid_transform(center=(header["MOON-X"], header["MOON-Y"]), rotation=theta, translation=(tx,ty))
+        registered_img = sk.transform.warp(img, tform) # inverse of the inverse here, be careful
+
+    fig, ax = plt.subplots()
+    
+    rgb = np.stack([ref_img, 0.5*(ref_img+registered_img), registered_img], axis=2)
+    rgb = (rgb - rgb.min()) / (rgb.max() - rgb.min())
+    ax.imshow(rgb)
+    #ax.imshow(ndi.gaussian_filter((ref_img - registered_img)**2, sigma=10))
+
+    plt.show()
 
 if __name__ == "__main__":
 
-    from parameters import IMAGE_SCALE, ROTATION
-    from parameters import MEASURED_TIME, UTC_TIME, LATITUDE, LONGITUDE
-    from parameters import INPUT_DIR, MOON_DIR, SUN_DIR
+    from parameters import INPUT_DIR
+    from lib.interface import DefaultInterface
 
-    REF_FILENAME = "0.01667s_2024-04-09_02h42m25s.fits"
+    global INTERFACE
+    INTERFACE = DefaultInterface()
+
+    ref_filename = "0.25000s_2024-04-09_02h40m33s.fits"
+    other_filenames = ["0.25000s_2024-04-09_02h42m31s.fits"]
+
+    # ref_filename = "0.00100s_2024-04-09_02h39m59s.fits"
+    # other_filenames = ["0.00100s_2024-04-09_02h43m02s.fits"]
 
     main(INPUT_DIR,
-         MOON_DIR,
-         SUN_DIR,
-         LATITUDE,
-         LONGITUDE,
-         MEASURED_TIME,
-         UTC_TIME,
-         ROTATION,
-         IMAGE_SCALE,
-         REF_FILENAME)
+         ref_filename,
+         other_filenames)
