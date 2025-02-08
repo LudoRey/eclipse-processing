@@ -1,8 +1,14 @@
 import numpy as np
-from .utils import Timer
-from scipy.ndimage import gaussian_filter
+import cv2
 
-from .polar import warp_cart_to_polar, warp_polar_to_cart
+from core.lib import transform
+
+border_mode_dict = {
+    'constant': cv2.BORDER_CONSTANT,
+    'nearest': cv2.BORDER_REPLICATE,
+    'reflect': cv2.BORDER_REFLECT,
+    'wrap': cv2.BORDER_WRAP,
+}
 
 def achf_kernel_at_ij(i, j, theta, rho, sigma, sun_radius=141.4213562373095, return_components=False):
     rho_center = rho[i,j]
@@ -47,24 +53,40 @@ def new_achf_kernel_at_ij(i, j, theta, rho, sigma, sun_radius=141.4213562373095)
     kernel[mask == 1] = kernel_values
     return kernel
 
+def sobel_grad_mag(img):
+    sobel_x = cv2.Sobel(img, cv2.CV_64F, 1, 0)
+    sobel_y = cv2.Sobel(img, cv2.CV_64F, 0, 1)
+    return cv2.magnitude(sobel_x, sobel_y)
+
+def gaussian_filter(img, sigma: float, border_mode='reflect', truncate: float=4.0, *, axes: tuple | None = None):
+    radius = round(truncate*sigma)
+    kernel_size = 2*radius + 1
+    if axes is None or axes == (0,1):
+        kernel_size = (kernel_size, kernel_size)
+    if axes == (0,):
+        kernel_size = (1, kernel_size) # (width, height)
+    if axes == (1,):
+        kernel_size = (kernel_size, 1)
+    return cv2.GaussianBlur(img, kernel_size, sigma, border_mode_dict[border_mode])
+
 def achf(img_polar, sigma, j_0, rho_factor, theta_factor):
     blurred_img_polar = np.copy(img_polar)
     for j in range(j_0, blurred_img_polar.shape[1]): # we don't need to apply tangential blurring on j < j_0, because the mask is 0 there
         rho = j/rho_factor
-        blurred_img_polar[:,j] = gaussian_filter(blurred_img_polar[:,j], sigma=(sigma/rho)*theta_factor, mode='wrap') # tangential
-    blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), mode='reflect') # radial
+        blurred_img_polar[:,j] = gaussian_filter(blurred_img_polar[:,j], sigma=(sigma/rho)*theta_factor, border_mode='wrap') # tangential
+    blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), border_mode='reflect') # radial
     return blurred_img_polar
 
 def radial_tangential(img_polar, sigma, rho_0, rho_factor, theta_factor):
-    blurred_img_polar = gaussian_filter(img_polar, sigma=(sigma/rho_0)*theta_factor, axes=(0,), mode='wrap') # tangential
-    blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), mode='reflect') # radial
+    blurred_img_polar = gaussian_filter(img_polar, sigma=(sigma/rho_0)*theta_factor, axes=(0,), border_mode='wrap') # tangential
+    blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), border_mode='reflect') # radial
     return blurred_img_polar
 
-def tangential_filter(img, x_c, y_c, sigma, output_shape=[1000,2000]):
+def tangential_filter(img, center, sigma, output_shape=[1000,1000]):
     shape = img.shape
-    img = warp_cart_to_polar(img, x_c, y_c, output_shape, mode='edge')
-    img = gaussian_filter(img, sigma, axes=(0,), mode='wrap') # only tangential
-    img = warp_polar_to_cart(img, x_c, y_c, shape)
+    img = transform.warp_cart_to_polar(img, center, output_shape)
+    img = gaussian_filter(img, sigma, axes=(0,), border_mode='wrap') # only tangential
+    img = transform.warp_polar_to_cart(img, center, shape)
     return img
 
 def partial_filter(img, mask, filter_func, filter_args):

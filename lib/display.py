@@ -1,6 +1,6 @@
 import numpy as np
 from astropy.io import fits
-from .pyx.lut import apply_lut
+from .pyx.lut import apply_lut_rgb, apply_lut_grayscale
 
 def combine_red_green(img1, img2):
     img = np.zeros((img1.shape[0], img1.shape[1], 3))
@@ -48,7 +48,10 @@ def generate_ht_lut(m, vmin, vmax, bits=16):
 def ht_lut(x, m, vmin=None, vmax=None, bits=16):
     '''Returns an 8-bit image.'''
     lut = generate_ht_lut(m, vmin, vmax, bits)
-    x = apply_lut(x, lut) 
+    if x.ndim == 3:
+        x = apply_lut_rgb(x, lut) 
+    if x.ndim == 2:
+        x = apply_lut_grayscale(x, lut) 
     return x
 
 def mtf(x, m):
@@ -89,3 +92,6 @@ def crop(img, left, right, top, bottom, header=None):
 
 def center_crop(img, x_c, y_c, w=512, h=512, header=None):
     return crop(img, x_c-w//2, x_c+w//2-1, y_c-h//2, y_c+h//2-1, header)
+
+def normalize(img):
+    return (img - img.min()) / (img.max() - img.min())

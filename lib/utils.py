@@ -3,6 +3,9 @@ import io
 import sys
 
 class Timer:
+    def __init__(self, text=None):
+        self.text = text 
+
     def __enter__(self):
         self.start_time = time.perf_counter() 
         return self
@@ -10,26 +13,27 @@ class Timer:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.perf_counter() 
         elapsed_time = self.end_time - self.start_time
-        print(f"Elapsed time: {elapsed_time:.2f} seconds")
+        text = "Elapsed time" if self.text is None else self.text
+        print(f"{text}: {elapsed_time:.2f} seconds")
 
 class ColorTerminalStream(io.TextIOWrapper):
     def __init__(self, **kwargs):
         super().__init__(buffer=sys.__stdout__.buffer, **kwargs)
         self.ansi_dict = {
             "default": 0,
-            "red": 31,
-            "green": 32,
-            "yellow": 33,
-            "blue": 34,
-            "magenta": 35,
-            "cyan": 36,
-            "white": 37
+            "red": 91,
+            "green": 92,
+            "yellow": 93,
+            "blue": 94,
+            "magenta": 95,
+            "cyan": 96,
+            "white": 97
         }
 
     def write_color(self, text, color):
         self.write(f"\033[{self.ansi_dict[color]}m{text}\033[0m")
 
-#color_stream = ColorTerminalStream()
+#sys.stdout = ColorTerminalStream()
 
 def cprint(*values, color=None, sep=" ", end="\n", stream=None, flush=True):
     if stream is None:

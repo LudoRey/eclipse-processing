@@ -17,7 +17,7 @@ def read_fits(filepath, verbose=True):
 
 def read_fits_as_float(filepath, rows_range=None, verbose=True):
     if verbose:
-        cprint(f"Opening {filepath}...", color="green")
+        cprint(f"Opening {filepath}...", color="cyan")
     # Open image/header
     with astropy.io.fits.open(filepath) as hdul:
         header = hdul[0].header
@@ -55,7 +55,7 @@ def save_as_fits(img, header, filepath, convert_to_uint16=True):
     hdu.writeto(filepath, overwrite=True)
 
 def update_fits_header(filepath, update_dict):
-    cprint(f"Updating FITS header...", color="green")
+    cprint(f"Updating FITS header...", color="cyan")
     with astropy.io.fits.open(filepath, mode='update') as hdul:
         header = hdul[0].header
         for k, v in update_dict.items():
@@ -63,7 +63,7 @@ def update_fits_header(filepath, update_dict):
 
 def read_fits_header(filepath, verbose=False, cache=False):
     if verbose:
-        cprint(f"Opening {filepath}...", color="green")
+        cprint(f"Opening {filepath}...", color="cyan")
     with astropy.io.fits.open(filepath, cache=cache) as hdul:
         header = hdul[0].header
     return header

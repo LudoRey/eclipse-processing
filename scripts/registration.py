@@ -5,7 +5,8 @@ from scipy import ndimage as ndi
 from matplotlib import pyplot as plt, animation as anim
 
 from lib import fits, display
-from lib.registration import sun, transform
+from core.lib import transform
+from core.lib.registration import sun
 
 def main(input_dir, ref_filename, other_filenames):
     # Load reference image
