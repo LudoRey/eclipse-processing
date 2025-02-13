@@ -63,11 +63,18 @@ def gaussian_filter(img, sigma: float, border_mode='reflect', truncate: float=4.
     kernel_size = 2*radius + 1
     if axes is None or axes == (0,1):
         kernel_size = (kernel_size, kernel_size)
-    if axes == (0,):
+    elif axes == (0,):
         kernel_size = (1, kernel_size) # (width, height)
-    if axes == (1,):
+    elif axes == (1,):
         kernel_size = (kernel_size, 1)
-    return cv2.GaussianBlur(img, kernel_size, sigma, border_mode_dict[border_mode])
+    else:
+        raise ValueError("axes must be None, (0,1), (0,) or (1,)")
+    if border_mode == 'wrap': # cv2.GaussianBlur does not support wrap mode
+        img = cv2.copyMakeBorder(img, radius, radius, radius, radius, cv2.BORDER_WRAP)
+        img = cv2.GaussianBlur(img, kernel_size, sigma, borderType=cv2.BORDER_CONSTANT)
+        return img[radius:-radius, radius:-radius]
+    else:
+        return cv2.GaussianBlur(img, kernel_size, sigma, borderType=border_mode_dict[border_mode])
 
 def achf(img_polar, sigma, j_0, rho_factor, theta_factor):
     blurred_img_polar = np.copy(img_polar)
