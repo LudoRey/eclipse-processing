@@ -16,7 +16,10 @@ interp_mode_dict = {
 }
 
 def centered_rigid_transform(center, rotation, translation):
-    '''Rotate first around center, then translate'''
+    '''
+    Rotate first around center, then translate.
+    Rotation is the *counterclockwise* angle in radians (but remember that the y-axis is upside down in images!)
+    '''
     t_uncenter = sk.transform.EuclideanTransform(translation=center)
     t_center = t_uncenter.inverse
     t_rotate = sk.transform.EuclideanTransform(rotation=rotation)
@@ -31,7 +34,7 @@ def warp(img: np.ndarray,
          border_value = 0):
     
     if output_shape is None:
-        output_shape = img.shape
+        output_shape = img.shape[0:2]
 
     if np.array_equal(matrix[2], [0,0,1]):
         _warp = cv2.warpAffine # faster
@@ -50,19 +53,31 @@ def warp_cart_to_polar(img: np.ndarray,
                        interp_mode = 'linear',
                        log_scaling = False):
     # Set defaults
+    input_shape = img.shape
     if not output_shape:
-        output_shape = img.shape
+        output_shape = input_shape
     if not center:
-        center = (img.shape[1] // 2, img.shape[0] // 2)
+        center = (input_shape[1] // 2, input_shape[0] // 2)
     # Find maximum radius coordinate in input image
-    corner_pts = np.array([[0, 0],[0, img.shape[1]],[img.shape[0], 0], [img.shape[0], img.shape[1]]])
+    corner_pts = np.array([[0, 0],[0, input_shape[1]],[input_shape[0], 0], [input_shape[0], input_shape[1]]])
     corner_dist = np.sqrt(np.sum((corner_pts - np.array([center[1], center[0]]))**2, axis=1))
-    max_radius = corner_dist.max()
+    max_radius = corner_dist.max()+1
     # Set flags
     flags = interp_mode_dict[interp_mode]
     if log_scaling:
         flags = flags | cv2.WARP_POLAR_LOG
-    return cv2.warpPolar(img, (output_shape[1], output_shape[0]), center, max_radius, flags) # TODO : fix border mode ?
+    flags = flags | cv2.WARP_FILL_OUTLIERS
+    # Warp image
+    img = cv2.warpPolar(img, (output_shape[1], output_shape[0]), center, max_radius, flags)
+    # Border mode
+    # warpPolar does not support borderMode, but we want to replicate the edge instead of filling with zeros
+    outliers = cv2.warpPolar(np.full(input_shape, 255, np.uint8), (output_shape[1], output_shape[0]), center, max_radius, flags) != 255
+    col_indices = np.argmax(outliers, axis=1)
+    row_indices = np.arange(outliers.shape[0])
+    for row_index, col_index in zip(row_indices, col_indices):
+        if col_index != 0:
+            img[row_index, col_index:] = img[row_index, col_index-1]
+    return img
     
 def warp_polar_to_cart(img: np.ndarray,
                        center: tuple = None,
@@ -77,15 +92,13 @@ def warp_polar_to_cart(img: np.ndarray,
     # Find maximum radius coordinate in output image
     corner_pts = np.array([[0, 0],[0, output_shape[1]],[output_shape[0], 0], [output_shape[0], output_shape[1]]])
     corner_dist = np.sqrt(np.sum((corner_pts - np.array([center[1], center[0]]))**2, axis=1))
-    max_radius = corner_dist.max()
+    max_radius = corner_dist.max()+1
     # Set flags
     flags = interp_mode_dict[interp_mode]
     if log_scaling:
         flags = flags | cv2.WARP_POLAR_LOG
     flags = flags | cv2.WARP_INVERSE_MAP
-
     return cv2.warpPolar(img, (output_shape[1], output_shape[0]), center, max_radius, flags)
-
 
 ## Much slower skimage version
 
