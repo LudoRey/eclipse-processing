@@ -14,7 +14,7 @@ def get_clipping_value(img, header):
     clipping_value = np.min(img[moon_mask_border]) # Possible bug : dead pixels
     return clipping_value
 
-def preprocess(img, header, clipping_value):
+def preprocess(img, header, clipping_value, sigma_high_pass_tangential=10, sigma_low_pass=3):
     print("Preparing image for registration...")
     # Convert to grayscale
     if len(img.shape) == 3:
@@ -49,9 +49,9 @@ def preprocess(img, header, clipping_value):
 
     print("Bandpass filter")
     # High-pass tangential filter
-    img = img - filters.tangential_filter(img, (header["MOON-X"], header["MOON-Y"]), sigma=10)
+    img = img - filters.tangential_filter(img, (header["MOON-X"], header["MOON-Y"]), sigma=sigma_high_pass_tangential)
     # Low pass filter (to match the bilinear interpolation smoothing that happends during registration)
-    img = filters.gaussian_filter(img, sigma=2)
+    img = filters.gaussian_filter(img, sigma=sigma_low_pass)
     
     img /= img.std()
     return img
