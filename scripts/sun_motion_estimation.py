@@ -47,29 +47,28 @@ def main(input_dir,
     img_to_display[:,:,2] = img_to_display[:,:,1]
     img_callback(img_to_display)
 
-    tx, ty = registration.correlation_peak(img, ref_img)
+    tx, ty = registration.correlation_peak(img, ref_img) # translation ref_img -> img
     print("Correlation peak: ", tx, ty)
     theta = 0
-    rotation_center = (header["MOON-X"], header["MOON-Y"])
+    rotation_center = (ref_header["MOON-X"], ref_header["MOON-Y"]) 
 
-    def optim_callback(iter, x, f, g, alpha):
+    def optim_callback(iter, x, f, g, delta):
         # Checkstate
         checkstate()
         # Display info
         print(f"Iteration {iter}:")
         print(f"Value : {f:.3e}")
-        print(f"x : {x}")
-        print(f"Gradient : {g}")
-        print(f"alpha : {alpha} \n")
+        print(f"Gradient : {g[0]:.3e}, {g[1]:.3e}, {g[2]:.3e}")
+        print(f"theta, tx, ty : {x[0]:.2f}, {x[1]:.2f}, {x[2]:.2f}")
+        print(f"delta {delta} \n")
         # Custom image callback
-        theta, tx, ty = registration.DiscreteRigidRegistrationObjective.convert_x_to_params(x)
-        tform = transform.centered_rigid_transform(center=rotation_center, rotation=theta, translation=(tx,ty))
-        img_to_display[:,:,1] = display.normalize(transform.warp(img, tform.params))
+        inv_tform = transform.centered_rigid_transform(center=rotation_center, rotation=theta, translation=(tx,ty))
+        img_to_display[:,:,1] = display.normalize(transform.warp(img, inv_tform.inverse.params))
         img_to_display[:,:,2] = img_to_display[:,:,1]
         
         img_callback(img_to_display)
 
-    obj = registration.DiscreteRigidRegistrationObjective(ref_img, img, rotation_center)
+    obj = registration.RigidRegistrationObjective(ref_img, img, rotation_center)
     x = optim.line_search_gradient_descent(obj.convert_params_to_x(theta, tx, ty), obj.value, obj.grad, callback=optim_callback)
     theta, tx, ty = obj.convert_x_to_params(x)    
 
