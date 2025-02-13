@@ -32,45 +32,53 @@ def main(input_dir,
     ref_img = registration.sun.preprocess(ref_img, ref_header, clipping_value)
     # GUI interactions
     checkstate()
-    img_to_display = np.zeros(ref_img.shape + (3,))
-    img_to_display[:,:,0] = display.normalize(ref_img)
-    img_to_display[:,:,1] = np.median(img_to_display[:,:,0])
-    img_to_display[:,:,2] = img_to_display[:,:,1]
+    img_to_display = display.normalize(ref_img)
     img_callback(img_to_display)
 
     # Preprocess image to register
     img = registration.sun.preprocess(img, header, clipping_value)
     # GUI interactions
     checkstate()
-    img_to_display[:,:,0] = display.normalize(ref_img)
-    img_to_display[:,:,1] = display.normalize(img)
-    img_to_display[:,:,2] = img_to_display[:,:,1]
+    img_to_display = display.normalize(ref_img+img)
     img_callback(img_to_display)
 
     tx, ty = registration.correlation_peak(img, ref_img) # translation ref_img -> img
     print("Correlation peak: ", tx, ty)
     theta = 0
-    rotation_center = (ref_header["MOON-X"], ref_header["MOON-Y"]) 
+    rotation_center = (ref_header["MOON-X"], ref_header["MOON-Y"])
 
-    def optim_callback(iter, x, f, g, delta):
+    def optim_callback(iter, x, f, g, p, delta):
         # Checkstate
         checkstate()
         # Display info
+        theta, tx, ty = obj.convert_x_to_params(x)
         print(f"Iteration {iter}:")
         print(f"Value : {f:.3e}")
         print(f"Gradient : {g[0]:.3e}, {g[1]:.3e}, {g[2]:.3e}")
-        print(f"theta, tx, ty : {x[0]:.2f}, {x[1]:.2f}, {x[2]:.2f}")
+        print(f"Descent direction : {p[0]:.3e}, {p[1]:.3e}, {p[2]:.3e}")
+        print(f"theta, tx, ty : {np.rad2deg(theta):.3f}, {tx:.2f}, {ty:.2f}")
         print(f"delta {delta} \n")
         # Custom image callback
         inv_tform = transform.centered_rigid_transform(center=rotation_center, rotation=theta, translation=(tx,ty))
-        img_to_display[:,:,1] = display.normalize(transform.warp(img, inv_tform.inverse.params))
-        img_to_display[:,:,2] = img_to_display[:,:,1]
+        #print(inv_tform.translation, inv_tform.rotation) # do we want this ?
+        img_to_display = display.normalize(ref_img + transform.warp(img, inv_tform.inverse.params))
         
         img_callback(img_to_display)
 
-    obj = registration.RigidRegistrationObjective(ref_img, img, rotation_center)
-    x = optim.line_search_gradient_descent(obj.convert_params_to_x(theta, tx, ty), obj.value, obj.grad, callback=optim_callback)
-    theta, tx, ty = obj.convert_x_to_params(x)    
+    obj = registration.RigidRegistrationObjective(ref_img, img, rotation_center, theta_factor=180/np.pi)
+    x = optim.line_search_gradient_descent(obj.convert_params_to_x(theta, tx, ty),
+                                           obj.value, obj.grad_numba, obj.hess_numba,
+                                           callback=optim_callback)
+    theta, tx, ty = obj.convert_x_to_params(x)
+
+def red_cyan_colormap(img):
+    color_img = np.zeros((*img.shape, 3))
+    negative_mask = img < 0
+    positive_mask = img >= 0
+    color_img[negative_mask, 0] = -img[negative_mask]  # Red channel for negative values
+    color_img[positive_mask, 1] = img[positive_mask]   # Green channel for positive values
+    color_img[positive_mask, 2] = img[positive_mask]   # Blue channel for positive values
+    return display.normalize(color_img)
 
 if __name__ == "__main__":
 
