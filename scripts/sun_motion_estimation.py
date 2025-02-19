@@ -7,10 +7,12 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 import skimage as sk
+import cv2
 from matplotlib.animation import FuncAnimation
 
 #from core.lib.registration import sun, optim, transform, utils
 from core.lib import fits, display, registration, transform, optim
+from core.lib.utils import cprint
 
 def main(input_dir,
         ref_filename,
@@ -24,63 +26,67 @@ def main(input_dir,
     img, header = fits.read_fits_as_float(os.path.join(input_dir, other_filename))
 
     # Get clipping value
-    print("Computing clipping value...", end=" ")
+    print("Computing clipping value...", end=" ", flush=True)
     clipping_value = min(registration.sun.get_clipping_value(img, header) for img, header in zip([ref_img, img], [ref_header, header]))
-    print(clipping_value)
+    print(f"{clipping_value:.3f}")
 
     # Preprocess reference image
     ref_img = registration.sun.preprocess(ref_img, ref_header, clipping_value)
     # GUI interactions
     checkstate()
-    img_to_display = display.normalize(ref_img)
+    img_to_display = red_cyan_colormap(ref_img, np.median(ref_img))
     img_callback(img_to_display)
 
     # Preprocess image to register
     img = registration.sun.preprocess(img, header, clipping_value)
     # GUI interactions
     checkstate()
-    img_to_display = display.normalize(ref_img+img)
+    img_to_display = red_cyan_colormap(ref_img, img)
     img_callback(img_to_display)
 
     tx, ty = registration.correlation_peak(img, ref_img) # translation ref_img -> img
-    print("Correlation peak: ", tx, ty)
     theta = 0
     rotation_center = (ref_header["MOON-X"], ref_header["MOON-Y"])
 
-    def optim_callback(iter, x, f, g, p, delta):
+    def optim_callback(iter, x, delta, f, g):
         # Checkstate
         checkstate()
         # Display info
-        theta, tx, ty = obj.convert_x_to_params(x)
-        print(f"Iteration {iter}:")
-        print(f"Value : {f:.3e}")
-        print(f"Gradient : {g[0]:.3e}, {g[1]:.3e}, {g[2]:.3e}")
-        print(f"Descent direction : {p[0]:.3e}, {p[1]:.3e}, {p[2]:.3e}")
-        print(f"theta, tx, ty : {np.rad2deg(theta):.3f}, {tx:.2f}, {ty:.2f}")
-        print(f"delta {delta} \n")
+        print(f"\nIteration {iter}:")
+        cprint(f"theta: {x[0]:>8.3f} ({delta[0]:+.3f})", color="green") 
+        cprint(f"tx   : {x[1]:>8.2f} ({delta[1]:+.2f})", color="green") 
+        cprint(f"ty   : {x[2]:>8.2f} ({delta[2]:+.2f})", color="green") 
+        print(f"Objective value   : {f:.3e}")
+        print(f"Objective gradient: {g[0]:.3e}, {g[1]:.3e}, {g[2]:.3e}")
         # Custom image callback
+        theta, tx, ty = obj.convert_x_to_params(x)
         inv_tform = transform.centered_rigid_transform(center=rotation_center, rotation=theta, translation=(tx,ty))
-        #print(inv_tform.translation, inv_tform.rotation) # do we want this ?
-        img_to_display = display.normalize(ref_img + transform.warp(img, inv_tform.inverse.params))
+        img_to_display = red_cyan_colormap(ref_img, transform.warp(img, inv_tform.inverse.params))
         
         img_callback(img_to_display)
 
     obj = registration.RigidRegistrationObjective(ref_img, img, rotation_center, theta_factor=180/np.pi)
-    x = optim.line_search_gradient_descent(obj.convert_params_to_x(theta, tx, ty),
-                                           obj.value, obj.grad_numba, obj.hess_numba,
-                                           callback=optim_callback)
+    delta_max = 1
+    delta_min = np.array([1e-4, 1e-3, 1e-3]) # want more precision on the angle
+    x = optim.line_search_newton(obj.convert_params_to_x(theta, tx, ty),
+                                 obj.value, obj.grad, obj.hess,
+                                 delta_max=delta_max, delta_min=delta_min,
+                                 callback=optim_callback)
     theta, tx, ty = obj.convert_x_to_params(x)
 
-def red_cyan_colormap(img):
-    color_img = np.zeros((*img.shape, 3))
-    negative_mask = img < 0
-    positive_mask = img >= 0
-    color_img[negative_mask, 0] = -img[negative_mask]  # Red channel for negative values
-    color_img[positive_mask, 1] = img[positive_mask]   # Green channel for positive values
-    color_img[positive_mask, 2] = img[positive_mask]   # Blue channel for positive values
+def red_cyan_colormap(img1, img2, difference_blend_factor=0.75):
+    color_img = np.zeros((*img1.shape, 3), dtype=np.float64)
+    mean = (img1 + img2)/2
+    diff = img1 - img2
+    color_img[..., 0] = (1-difference_blend_factor)*mean + difference_blend_factor*diff
+    color_img[..., 1] = (1-difference_blend_factor)*mean - difference_blend_factor*diff
+    color_img[..., 2] = color_img[..., 1]
     return display.normalize(color_img)
 
 if __name__ == "__main__":
+    import sys
+    from core.lib.utils import ColorTerminalStream
+    sys.stdout = ColorTerminalStream()
 
     from core.parameters import IMAGE_SCALE
     from core.parameters import MEASURED_TIME, UTC_TIME, LATITUDE, LONGITUDE
