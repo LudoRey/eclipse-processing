@@ -58,6 +58,9 @@ def main(input_dir,
         checkstate()
 
 if __name__ == "__main__":
+    import sys
+    from core.lib.utils import ColorTerminalStream
+    sys.stdout = ColorTerminalStream()
 
     from core.parameters import IMAGE_SCALE
     from core.parameters import MEASURED_TIME, UTC_TIME, LATITUDE, LONGITUDE

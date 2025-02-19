@@ -15,7 +15,7 @@ def get_clipping_value(img, header):
     return clipping_value
 
 def preprocess(img, header, clipping_value, sigma_high_pass_tangential=10, sigma_low_pass=3):
-    print("Preparing image for registration...")
+    print("Preprocessing image...", end=" ", flush=True)
     # Convert to grayscale
     if len(img.shape) == 3:
         img = img.mean(axis=2)
@@ -47,13 +47,13 @@ def preprocess(img, header, clipping_value, sigma_high_pass_tangential=10, sigma
     # print("Inpainting")
     # img = sk.restoration.inpaint_biharmonic(img, mask)
 
-    print("Bandpass filter")
-    # High-pass tangential filter
+    # Tangential high-pass filter
     img = img - filters.tangential_filter(img, (header["MOON-X"], header["MOON-Y"]), sigma=sigma_high_pass_tangential)
-    # Low pass filter (to match the bilinear interpolation smoothing that happends during registration)
+    # Low-pass filter to match the bilinear interpolation smoothing that happens during registration
     img = filters.gaussian_filter(img, sigma=sigma_low_pass)
     
     img /= img.std()
+    print("Done.")
     return img
 
 

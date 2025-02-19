@@ -18,7 +18,7 @@ class Timer:
 
 class ColorTerminalStream(io.TextIOWrapper):
     def __init__(self, **kwargs):
-        super().__init__(buffer=sys.__stdout__.buffer, **kwargs)
+        super().__init__(buffer=sys.__stdout__.buffer, line_buffering=True, **kwargs)
         self.ansi_dict = {
             "default": 0,
             "red": 91,
@@ -33,9 +33,7 @@ class ColorTerminalStream(io.TextIOWrapper):
     def write_color(self, text, color):
         self.write(f"\033[{self.ansi_dict[color]}m{text}\033[0m")
 
-#sys.stdout = ColorTerminalStream()
-
-def cprint(*values, color=None, sep=" ", end="\n", stream=None, flush=True):
+def cprint(*values, color=None, sep=" ", end="\n", stream=None, flush=False):
     if stream is None:
         stream = sys.stdout
     for i, value in enumerate(values):

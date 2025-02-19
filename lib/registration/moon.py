@@ -11,7 +11,7 @@ def preprocess(img: np.ndarray, num_clipped_pixels: float, smoothing: float):
     if len(img.shape) == 3:
         img = img.mean(axis=2)
     # Compute and apply threshold
-    print(f"Clipping {num_clipped_pixels:.0f} pixels...", end=" ")
+    print(f"Clipping {num_clipped_pixels:.0f} pixels...", end=" ", flush=True)
     quantile_threshold = 1 - num_clipped_pixels / img.size
     threshold = np.quantile(img, quantile_threshold)
     print(f"Threshold : {threshold:.4f}.")
@@ -19,22 +19,24 @@ def preprocess(img: np.ndarray, num_clipped_pixels: float, smoothing: float):
     img /= threshold
     # Optional smoothing (in preparation for Sobel filtering)
     if smoothing:
-        print(f"Applying smoothing with sigma = {smoothing:.1f}...")
+        print(f"Applying smoothing with sigma = {smoothing:.1f}...", flush=True)
         img = filters.gaussian_filter(img, sigma=smoothing)
+        print("Done.")
     return img
 
 
 def detect(img: np.ndarray, num_edge_pixels: float, return_img: bool=True):
     # Compute edge image
-    print(f"Extracting {num_edge_pixels:.0f} edge pixels...")
+    print(f"Extracting {num_edge_pixels:.0f} edge pixels...", end=" ", flush=True)
     img = filters.sobel_grad_mag(img)
     # Compute threshold
     quantile_threshold = 1 - num_edge_pixels / img.size
     threshold = np.quantile(img, quantile_threshold)
     edges_coords = np.column_stack(np.nonzero(img > threshold))
+    print("Done.")
 
     # RANSAC
-    print("RANSAC circle fitting...", end=" ")
+    print("RANSAC circle fitting...", end=" ", flush=True)
     min_samples = 3 # Number of random samples used to estimate the model parameters at each iteration
     residual_threshold = 1 # Inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale, but shouldnt really be lower than 1...
     max_trials = 100 # Number of RANSAC trials 
