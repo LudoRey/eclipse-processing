@@ -27,9 +27,9 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True):
             img = hdul[0].data[:,rows_range[0]:rows_range[1]]
     # Type checking and float conversion
     if np.issubdtype(img.dtype, np.uint16): 
-        img = img.astype('float') / 65535
+        img = img.astype(np.float64) / 65535
     elif np.issubdtype(img.dtype, np.floating):
-        pass
+        img = img.astype(np.float64)
     else:
         raise TypeError(f"FITS image format must be either 16-bit unsigned integer, or floating point.")
     # If color image : CxHxW -> HxWxC
