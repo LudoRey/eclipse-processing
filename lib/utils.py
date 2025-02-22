@@ -21,6 +21,7 @@ class ColorTerminalStream(io.TextIOWrapper):
         super().__init__(buffer=sys.__stdout__.buffer, line_buffering=True, **kwargs)
         self.ansi_dict = {
             "default": 0,
+            "bold": 1,
             "red": 91,
             "green": 92,
             "yellow": 93,
@@ -30,17 +31,18 @@ class ColorTerminalStream(io.TextIOWrapper):
             "white": 97
         }
 
-    def write_color(self, text, color):
-        self.write(f"\033[{self.ansi_dict[color]}m{text}\033[0m")
+    def fancy_write(self, text, color, style):
+        ansi_code = ';'.join(str(self.ansi_dict[k]) for k in (color, style) if k is not None)
+        self.write(f"\033[{ansi_code}m{text}\033[0m")
 
-def cprint(*values, color=None, sep=" ", end="\n", stream=None, flush=False):
+def cprint(*values, color=None, style=None, sep=" ", end="\n", stream=None, flush=False):
     if stream is None:
         stream = sys.stdout
     for i, value in enumerate(values):
         if i != 0:
             stream.write(sep)
-        if hasattr(stream, "write_color") and color is not None:
-            stream.write_color(value, color)
+        if hasattr(stream, "fancy_write") and (color or style):
+            stream.fancy_write(value, color, style)
         else:
             stream.write(value)
     stream.write(end)

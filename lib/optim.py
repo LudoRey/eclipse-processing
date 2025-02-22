@@ -34,9 +34,10 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
     - delta_max : ensures the line search does not make us move by more than delta_max in any direction.
     - delta_min : stop the optimization loop when we move by less than delta_min in all directions.
     '''
-    delta = np.zeros_like(x0)
     x = x0
-    f = func(x0) # Compute initial function value; in the loop we can reuse the value computed during backtracking
+    f = func(x0)
+    # Callback
+    callback(0, x, None, f)
     # Early termination flag
     converged = False
     # Optimization loop
@@ -45,8 +46,6 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
         g = grad(x)
         H = hess(x) if hess is not None else None
         p = get_descent_direction(g, H)
-        # Callback
-        callback(iter, x, delta, f, g)
         # Armijo condition : decrease must be at least proportional to t
         t = -c*np.dot(g,p) # this should be a positive value
         # 2-way line search
@@ -83,9 +82,8 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
         # Accept step
         delta = alpha*p
         x = x + delta
-        f = f_next
-    # Final callback
-    g = grad(x)
-    callback(iter, x, delta, f, g)
+        f = f_next # reuse the value computed during backtracking
+        # Callback
+        callback(iter, x, delta, f)    
     print("Maximum number of iterations reached. Optimization terminated.")
     return x

@@ -17,14 +17,12 @@ def correlation_peak(img1, img2) -> Tuple[int, int]:
     The highest peak of the correlation between img1 and img2 minimizes the MSE w.r.t. integer translation img2 -> img1.
     We typically use it as an initial guess for the rigid registration.
     '''
-    print("Computing correlation peak...", end=" ", flush=True)
     correlation_img = correlation(img1, img2)
     ty, tx = np.unravel_index(np.argmax(correlation_img), correlation_img.shape)
     # Convert tx, ty to proper range
     h, w = img1.shape[0:2]
     ty = ty if ty <= h // 2 else ty - h # ty in [0,h-1] -> [-h//2+1, h//2]
     tx = tx if tx <= w // 2 else tx - w
-    print(f"({tx}, {ty})")
     return tx, ty
 
 class DiscreteRigidRegistrationObjective:
@@ -70,7 +68,7 @@ class DiscreteRigidRegistrationObjective:
         return x
     
 class RigidRegistrationObjective:
-    def __init__(self, ref_img, img, rotation_center, theta_factor=180/np.pi, dtype=np.float32):
+    def __init__(self, ref_img, img, rotation_center, theta_factor=180/np.pi):
         '''
         Parameters
         ----------
@@ -84,10 +82,11 @@ class RigidRegistrationObjective:
         landscape more isotropic, which helps a lot for first-order methods (e.g. gradient descent). \
         Note that this is not relevant if we are using the Hessian, as it takes the curvature into account.
         '''
+        dtype = img.dtype
         if dtype not in [np.float32, np.float64]:
-            raise ValueError(f"Invalid dtype {dtype}. Must be np.float32 or np.float64.")
-        self.ref_img = ref_img.astype(dtype)
-        self.img = img.astype(dtype)
+            raise ValueError(f"Invalid img dtype {dtype}. Must be np.float32 or np.float64.")
+        self.ref_img = ref_img
+        self.img = img
         self.rotation_center = rotation_center
         self.theta_factor = theta_factor 
 

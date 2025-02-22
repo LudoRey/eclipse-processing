@@ -4,8 +4,10 @@ if __name__ == "__main__":
 
 import os
 import numpy as np
+import skimage as sk
 
-from core.lib import registration, fits
+from core.lib import registration, fits, display, filters
+from core.lib.utils import cprint
 
 def main(input_dir,
          image_scale,
@@ -43,19 +45,81 @@ def main(input_dir,
         #if filename == "0.25000s_2024-04-09_02h42m31s.fits" or filename == "0.25000s_2024-04-09_02h40m33s.fits":
 
         img, header = fits.read_fits_as_float(os.path.join(dirpath, filename))
-        img = registration.moon.preprocess(img, num_clipped_pixels, smoothing)
-        checkstate()
-        img_callback(img)
 
-        moon_x, moon_y, moon_radius, img = registration.moon.detect(img, num_edge_pixels)
+        cprint("Preprocessing...", style='bold')
+        # Convert to grayscale
+        if len(img.shape) == 3:
+            img = img.mean(axis=2)
+        # Rescale and clip pixels to make moon border more defined
+        print(f"Clipping {num_clipped_pixels:.0f} pixels...", end=" ", flush=True)
+        img, threshold = clip_brightest_pixels(img, num_clipped_pixels)
         checkstate()
         img_callback(img)
+        print(f"Threshold : {threshold:.4f}.")
+        # Compute image gradient (edges)
+        print(f"Computing edge map...", end=" ", flush=True)
+        img = compute_edge_map(img, smoothing)
+        checkstate()
+        img_callback(img)
+        print("Done.")
+
+        cprint("RANSAC circle fitting...", style='bold')
+        edge_coords = extract_brightest_pixels(img, num_edge_pixels)
+        (moon_x, moon_y, moon_radius), inliers = ransac_circle_fit(edge_coords)
+        checkstate()
+        img_callback(make_ransac_img(img, edge_coords, inliers))
+        print(f"Found {inliers.sum()} inliers.")
+        print("Circle parameters :")
+        cprint(f"- Center : ({moon_x:.2f}, {moon_y:.2f})", f"- Radius : {moon_radius:.2f}", color="green", sep="\n")
         
         fits.update_fits_header(os.path.join(dirpath, filename),
                                 {'MOON-X': (moon_x, 'X-coordinate of the moon center.'),
                                 'MOON-Y': (moon_y, 'Y-coordinate of the moon center.'),
                                 'MOON-R': (moon_radius, 'Radius of the moon.')})
         checkstate()
+
+def compute_edge_map(img: np.ndarray, smoothing: float=None):
+    # Optional smoothing (in preparation for Sobel filtering)
+    if smoothing:
+        img = filters.gaussian_filter(img, sigma=smoothing)
+    # Compute Sobel gradient
+    img = filters.sobel_grad_mag(img)
+    return display.normalize(img)
+
+def clip_brightest_pixels(img: np.ndarray, num_clipped_pixels: float):
+    quantile_threshold = 1 - num_clipped_pixels / img.size
+    threshold = np.quantile(img, quantile_threshold)
+    img = np.clip(img, 0, threshold) / threshold
+    return img, threshold
+
+def extract_brightest_pixels(img: np.ndarray, num_edge_pixels: float):
+    # Compute threshold
+    quantile_threshold = 1 - num_edge_pixels / img.size
+    threshold = np.quantile(img, quantile_threshold)
+    # Extract and return coords
+    return np.column_stack(np.nonzero(img > threshold)) # (N,2)
+
+def ransac_circle_fit(pixel_coords: np.ndarray):
+    # RANSAC parameters
+    min_samples = 3 # Number of random samples used to estimate the model parameters at each iteration
+    residual_threshold = 1 # Inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale, but shouldnt really be lower than 1...
+    max_trials = 100 # Number of RANSAC trials 
+    
+    model, inliers = sk.measure.ransac(
+        pixel_coords,
+        sk.measure.CircleModel,
+        min_samples=min_samples,
+        residual_threshold=residual_threshold,
+        max_trials=max_trials
+    )
+    return model.params, inliers
+
+def make_ransac_img(img: np.ndarray, pixel_coords: np.ndarray, inliers: np.ndarray):
+    img = np.stack([img]*3, axis=2)
+    for i in range(3):
+        img[pixel_coords[inliers][:,0], pixel_coords[inliers][:,1], i] = 1 if i == 1 else 0
+        img[pixel_coords[~inliers][:,0], pixel_coords[~inliers][:,1], i] = 1 if i == 0 else 0
+    return img
 
 if __name__ == "__main__":
     import sys

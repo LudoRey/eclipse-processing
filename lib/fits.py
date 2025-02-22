@@ -55,11 +55,11 @@ def save_as_fits(img, header, filepath, convert_to_uint16=True):
     hdu.writeto(filepath, overwrite=True)
 
 def update_fits_header(filepath, update_dict):
-    cprint(f"Updating FITS header...", color="cyan")
     with astropy.io.fits.open(filepath, mode='update') as hdul:
         header = hdul[0].header
         for k, v in update_dict.items():
             header[k] = v
+    print(f"Updated FITS header.")
 
 def read_fits_header(filepath, verbose=False, cache=False):
     if verbose:
