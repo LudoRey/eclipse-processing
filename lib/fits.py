@@ -15,7 +15,7 @@ def read_fits(filepath, verbose=True):
         img = np.moveaxis(img, 0, 2)
     return img, header
 
-def read_fits_as_float(filepath, rows_range=None, verbose=True):
+def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Opening {filepath}...", color="cyan")
     # Open image/header
@@ -35,6 +35,7 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True):
     # If color image : CxHxW -> HxWxC
     if len(img.shape) == 3:
         img = np.moveaxis(img, 0, 2)
+    checkstate()
     return img, header
 
 def remove_pedestal(img, header):
@@ -45,14 +46,17 @@ def remove_pedestal(img, header):
         del header["PEDESTAL"]
     return img
 
-def save_as_fits(img, header, filepath, convert_to_uint16=True):
-    print(f"Saving to {filepath}...")
+def save_as_fits(img, header, filepath, convert_to_uint16=True, verbose=True, *, checkstate=lambda: None):
+    if verbose:
+        cprint(f"Saving as {filepath}...", color="cyan")
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if convert_to_uint16:
         img = (np.clip(img, 0, 1)*65535).astype('uint16')
     if len(img.shape) == 3:
         img = np.moveaxis(img, 2, 0)
     hdu = astropy.io.fits.PrimaryHDU(data=img, header=header)
     hdu.writeto(filepath, overwrite=True)
+    checkstate()
 
 def update_fits_header(filepath, update_dict):
     with astropy.io.fits.open(filepath, mode='update') as hdul:
@@ -66,6 +70,12 @@ def read_fits_header(filepath, verbose=False, cache=False):
         cprint(f"Opening {filepath}...", color="cyan")
     with astropy.io.fits.open(filepath, cache=cache) as hdul:
         header = hdul[0].header
+    return header
+
+def update_header(header, dict, in_place=False):
+    header = astropy.io.fits.Header(header, copy = not in_place)
+    for k, v in dict.items():
+        header[k] = v
     return header
 
 def extract_subheader(header, keys):

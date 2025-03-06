@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Callable
-from core.lib.utils import Timer
+from core.lib.utils import Timer, cprint
+
 
 def get_descent_direction(g, H=None):
     '''
@@ -77,7 +78,7 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
                         accepted = True
 
         if converged:
-            print("Convergence reached. Optimization was terminated early.")
+            cprint("Optimization converged.", color='green')
             return x
         # Accept step
         delta = alpha*p
@@ -85,5 +86,5 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
         f = f_next # reuse the value computed during backtracking
         # Callback
         callback(iter, x, delta, f)    
-    print("Maximum number of iterations reached. Optimization terminated.")
+    cprint("Maximum number of iterations reached. Optimization may have not converged.", color='yellow')
     return x
