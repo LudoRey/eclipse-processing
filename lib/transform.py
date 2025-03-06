@@ -26,6 +26,9 @@ def centered_rigid_transform(center, rotation, translation):
     t_translate = sk.transform.EuclideanTransform(translation=translation)
     return t_center + t_rotate + t_uncenter + t_translate
 
+def translation_transform(translation):
+    return sk.transform.EuclideanTransform(rotation=0, translation=translation)
+
 def warp(img: np.ndarray,
          matrix: np.ndarray,
          output_shape = None,

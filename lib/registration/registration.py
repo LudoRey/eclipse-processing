@@ -24,48 +24,6 @@ def correlation_peak(img1, img2) -> Tuple[int, int]:
     ty = ty if ty <= h // 2 else ty - h # ty in [0,h-1] -> [-h//2+1, h//2]
     tx = tx if tx <= w // 2 else tx - w
     return tx, ty
-
-class DiscreteRigidRegistrationObjective:
-    def __init__(self, ref_img, img, rotation_center):
-        '''
-        To find the params of the optimal *inverse* transform, i.e. ref_img -> img
-        '''
-        self.ref_img = ref_img 
-        self.img = img
-        self.rotation_center = rotation_center
-        # Cache
-        self.x = None
-        self.value_at_x = None
-    
-    def value(self, x):
-        # Cached computation
-        if not np.array_equal(x, self.x) or self.value_at_x is None:
-            theta, tx, ty = self.convert_x_to_params(x)
-            tform = transform.centered_rigid_transform(center=self.rotation_center, rotation=theta, translation=(tx, ty))
-            registered_img = transform.warp(self.img, tform.inverse.params)
-            # Compute objective value and update cache
-            self.value_at_x = 1/2*np.mean((registered_img - self.ref_img)**2)
-        return self.value_at_x
-    
-    def grad(self, x, perturbation=0.1):
-        # Forward difference
-        value_at_x = self.value(x)
-        objective_grad = np.zeros(3)
-        for i in range(3):
-            perturbed_x = x.copy()
-            perturbed_x[i] -= perturbation
-            objective_grad[i] = (-self.value(perturbed_x) + value_at_x) / perturbation
-        return objective_grad
-    
-    @staticmethod
-    def convert_x_to_params(x):
-        theta, tx, ty = x[0]/1800 * np.pi, x[1], x[2] # parameters of img -> registered_img 
-        return theta, tx, ty
-    
-    @staticmethod
-    def convert_params_to_x(theta, tx, ty):
-        x = np.array([theta/np.pi * 1800, tx, ty])
-        return x
     
 class RigidRegistrationObjective:
     def __init__(self, ref_img, img, rotation_center, theta_factor=180/np.pi):
