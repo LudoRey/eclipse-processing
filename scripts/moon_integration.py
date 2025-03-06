@@ -2,13 +2,13 @@ import os
 import numpy as np
 
 from lib.fits import read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header, extract_subheader
-from parameters import MOON_DIR, MOON_STACKS_DIR
+from parameters import MOON_REGISTERED_DIR, MOON_STACKS_DIR
 from parameters import GROUP_KEYWORDS
 
 os.makedirs(MOON_STACKS_DIR, exist_ok=True)
 
 # Make a dictionary that contains for each group (key) a list of associated filepaths (value)
-grouped_filepaths = get_grouped_filepaths(MOON_DIR, GROUP_KEYWORDS)
+grouped_filepaths = get_grouped_filepaths(MOON_REGISTERED_DIR, GROUP_KEYWORDS)
 
 for group_key in grouped_filepaths.keys():
     # Need header to get image shape, and info about group

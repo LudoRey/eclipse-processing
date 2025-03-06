@@ -19,9 +19,9 @@ GROUP_KEYWORDS = ["EXPTIME"]
 
 # I/O
 INPUT_DIR = "D:\\_ECLIPSE2024\\data\\totality\\fits" # must be an existing directory : the others below will be created by the scripts.
-MOON_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon_fits"
+MOON_REGISTERED_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon"
 MOON_STACKS_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon_stacks"
-SUN_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun_fits"
+SUN_REGISTERED_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun"
 SUN_STACKS_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun_stacks"
 SUN_HDR_DIR = "D:\\_ECLIPSE2024\\data\\totality\\sun_hdr"
 MOON_HDR_DIR = "D:\\_ECLIPSE2024\\data\\totality\\moon_hdr"

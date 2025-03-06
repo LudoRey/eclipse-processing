@@ -3,10 +3,10 @@ import numpy as np
 from lib.fits import read_fits_as_float, get_grouped_filepaths, ht_lut, Timer
 from lib.integration import read_stack
 from astropy.stats import sigma_clip
-from parameters import MOON_DIR, SUN_DIR
+from parameters import MOON_REGISTERED_DIR, SUN_REGISTERED_DIR
 from parameters import GROUP_KEYWORDS
 
-grouped_filepaths = get_grouped_filepaths(SUN_DIR, GROUP_KEYWORDS)
+grouped_filepaths = get_grouped_filepaths(SUN_REGISTERED_DIR, GROUP_KEYWORDS)
 group_name = next(iter(grouped_filepaths))
 group_name = "EXP-0.06667"
 

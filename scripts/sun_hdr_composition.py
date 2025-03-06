@@ -4,7 +4,7 @@ import numpy as np
 from lib.fits import remove_pedestal, read_fits_as_float, save_as_fits, extract_subheader, get_grouped_filepaths, read_fits_header
 from parameters import MOON_RADIUS_DEGREE
 from parameters import IMAGE_SCALE
-from parameters import SUN_HDR_DIR, SUN_STACKS_DIR, MOON_DIR
+from parameters import SUN_HDR_DIR, SUN_STACKS_DIR, MOON_REGISTERED_DIR
 from parameters import GROUP_KEYWORDS
 
 from lib.disk import binary_disk
@@ -30,8 +30,8 @@ ref_header = read_fits_header(grouped_filepaths[list(grouped_filepaths.keys())[0
 ref_scaling_factor = compute_scaling_factor(ref_header, GROUP_KEYWORDS)
 shape = (ref_header["NAXIS2"], ref_header["NAXIS1"], ref_header["NAXIS3"])
 # Make moon mask (but it is ambiguous; here we arbitrarily take the moon position from the reference image, which can be found in the header of any moon-aligned image)
-filename = [fname for fname in os.listdir(MOON_DIR) if fname.endswith('fits')][0]
-moon_header = read_fits_header(os.path.join(MOON_DIR, filename))
+filename = [fname for fname in os.listdir(MOON_REGISTERED_DIR) if fname.endswith('fits')][0]
+moon_header = read_fits_header(os.path.join(MOON_REGISTERED_DIR, filename))
 moon_mask = binary_disk(moon_header["MOON-X"], moon_header["MOON-Y"], radius=moon_radius_pixels, shape=shape[0:2])
 # Make theta image once and for all
 img_theta = angle_map(ref_header["SUN-X"], ref_header["SUN-Y"], shape=shape[0:2])

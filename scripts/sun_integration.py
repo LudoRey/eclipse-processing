@@ -5,7 +5,7 @@ from lib.disk import linear_falloff_disk
 from lib.fits import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
 from parameters import MOON_RADIUS_DEGREE
 from parameters import IMAGE_SCALE
-from parameters import SUN_DIR, SUN_STACKS_DIR
+from parameters import SUN_REGISTERED_DIR, SUN_STACKS_DIR
 from parameters import GROUP_KEYWORDS
 
 EXTRA_RADIUS_PIXELS = 2
@@ -17,7 +17,7 @@ moon_radius_pixels += EXTRA_RADIUS_PIXELS
 os.makedirs(SUN_STACKS_DIR, exist_ok=True)
 
 # Make a dictionary that contains for each group (key) a list of associated filepaths (value)
-grouped_filepaths = get_grouped_filepaths(SUN_DIR, GROUP_KEYWORDS)
+grouped_filepaths = get_grouped_filepaths(SUN_REGISTERED_DIR, GROUP_KEYWORDS)
 
 for group_key in grouped_filepaths.keys():
     # Need header to get image shape, and info about group

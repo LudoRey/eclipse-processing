@@ -19,20 +19,20 @@ The parameters in `parameters.py` should be set once and for all : they are not 
     - `GROUP_KEYWORDS` : List of FITS keywords corresponding to settings that vary across the exposures (typically, "EXPTIME" and optionally "ISOSPEED" or "GAIN" if the gain was changed). These keywords will automatically determine groups of images to be stacked together. The keywords should be listed by order of importance : groups will be sorted by brightness based on the first keyword in priority, then on the second, etc... The order is important for the HDR algorithm.
 - I/O.
     - `INPUT_DIR` : Input directory for the registration script (`main_registration.py`) containing the calibrated (and debayered) images of the TSE in 16-bit unsigned integer FITS format (.fits extension, can use PixInsight's BatchFormatConversion script). **Do not** sort your images into subfolders based on exposure time or gain. The scripts will automatically detect the different settings based on `GROUP_KEYWORDS`.
-    - `MOON_DIR`, `SUN_DIR`, `MOON_STACKS_DIR`, `SUN_STACKS_DIR`, `MOON_STACKS_DIR`, `SUN_STACKS_DIR`, `MOON_HDR_DIR`, `SUN_HDR_DIR`, `MERGED_HDR_DIR` : Output (and input) directories for the scripts.
+    - `MOON_REGISTERED_DIR`, `SUN_REGISTERED_DIR`, `MOON_STACKS_DIR`, `SUN_STACKS_DIR`, `MOON_STACKS_DIR`, `SUN_STACKS_DIR`, `MOON_HDR_DIR`, `SUN_HDR_DIR`, `MERGED_HDR_DIR` : Output (and input) directories for the scripts.
 
 Each script contains its own set of parameters, listed at the top of the file. More details are given in the sections below.
 
 ## Registration
 
-The script `main_registration.py` simultaneously performs a moon-based and a sun-based registration of the input images located in `INPUT_DIR`. The output directories are defined by `MOON_DIR` and `SUN_DIR`.
+The script `main_registration.py` simultaneously performs a moon-based and a sun-based registration of the input images located in `INPUT_DIR`. The output directories are defined by `MOON_REGISTERED_DIR` and `SUN_REGISTERED_DIR`.
 
 Extra parameters (defined at the bottom of the script) :
 - `REF_FILENAME` : The registration is based on a reference image located at <`INPUT_DIR`>/<`REF_FILENAME`>.
 
 ## Integration
 
-The scripts `main_sun_integration.py` and `main_moon_integration.py` integrate the previously registered images located in `MOON_DIR` and `SUN_DIR`. A stack is generated for each group (see `GROUP_KEYWORDS`). The output directories are defined by `MOON_STACKS_DIR` and `SUN_STACKS_DIR`.
+The scripts `main_sun_integration.py` and `main_moon_integration.py` integrate the previously registered images located in `MOON_REGISTERED_DIR` and `SUN_REGISTERED_DIR`. A stack is generated for each group (see `GROUP_KEYWORDS`). The output directories are defined by `MOON_STACKS_DIR` and `SUN_STACKS_DIR`.
 
 The `main_sun_integration.py` script performs a weighted average of each pixel in order to reject as many moon pixels as possible. For each sub, a moon mask is computed, which depends on two additional parameters : 
 - `EXTRA_RADIUS_PIXELS` : extra amount of pixels added to the radius of the moon mask (which is obtained from `MOON_RADIUS_DEGREE` and `IMAGE_SCALE`). Increasing this parameter will lead to fewer artifacts at the cost of worse SNR : it should be as close to 0 as possible.
