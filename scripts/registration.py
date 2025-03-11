@@ -8,22 +8,28 @@ from datetime import datetime
 import scipy.interpolate
 
 from core.lib import registration, fits, interpolation, transform
-from core.lib.utils import cprint, Timer
 
-def main(input_dir,
-         ref_filename,
-         anchor_filenames,
-         moon_registered_dir,
-         sun_registered_dir,
-         image_scale,
-         moon_radius_degree=0.278,
-         num_clipped_multiplier=1.3,
-         num_edge_multiplier=1.0,
-         smoothing=None,
-         blend_factor=0.75,
-         *,
-         img_callback=lambda img: None,
-         checkstate=lambda: None):
+def main(
+    # IO
+    input_dir,
+    ref_filename,
+    anchor_filenames,
+    moon_registered_dir,
+    sun_registered_dir,
+    # Moon detection
+    image_scale,
+    moon_radius_degree=0.278,
+    clipped_factor=1.3,
+    edge_factor=1.0,
+    # Sun registration
+    sigma_high_pass_tangential=4.0, 
+    max_iter=10,
+    error_overlay_strength=0.75,
+    # GUI interactions
+    *, 
+    img_callback=lambda img: None,
+    checkstate=lambda: None
+    ):
     '''
     Parameters
     ----------
@@ -31,18 +37,18 @@ def main(input_dir,
     - image_scale: resolution in arcsec/pixels.
     - moon_radius_degree: apparent moon radius in degrees. Default corresponds to the perigee, i.e. an upper bound.
     Together with `image_scale`, determines `moon_radius_pixels`.
-    - num_clipped_multiplier: determines the number of clipped pixels (especially used for shorter subs).
-    Formula: `pi*(num_clipped_multiplier**2 - 1)*moon_radius_pixels**2`. Corresponds to the outer radius of an annulus, given in moon radii.
+    - clipped_factor: determines the number of clipped pixels (especially used for shorter subs).
+    Formula: `pi*(clipped_factor**2 - 1)*moon_radius_pixels**2`. Corresponds to the outer radius of an annulus, given in moon radii.
     Should be large enough so that a complete annulus is clipped, but not too large so
-    - num_edge_multiplier: determines the number of proposed edge pixels. Formula: `num_edge_multiplier*2*np.pi*moon_radius_pixels`.
+    - edge_factor: determines the number of proposed edge pixels. Formula: `edge_factor*2*np.pi*moon_radius_pixels`.
     Default is 1, which corresponds to the moon circonference. The final number of edge pixels is lower than that due to non-maximum suppression.
     '''
     # Default moon radius is an upper bound (coarse estimate used for threshold)
     moon_radius_pixels = np.rint(moon_radius_degree * 3600 / image_scale)
     # Because of brightness variations, the multiplier should be large enough so that a complete annulus is clipped
-    num_clipped_pixels = np.rint(np.pi*(num_clipped_multiplier**2 - 1)*moon_radius_pixels**2)
+    num_clipped_pixels = np.rint(np.pi*(clipped_factor**2 - 1)*moon_radius_pixels**2)
     # The number of pixels that correspond to the edge of the moon (given here by its circonference times a multiplier)
-    num_edge_pixels = np.rint(num_edge_multiplier*2*np.pi*moon_radius_pixels)
+    num_edge_pixels = np.rint(edge_factor*2*np.pi*moon_radius_pixels)
     # Note : we are losing precision by rounding to nearest integer at each step to be consistent with the GUI
     # This does not really matter here, we do not need to be precise
 
@@ -56,10 +62,10 @@ def main(input_dir,
     ref_img, ref_header = fits.read_fits_as_float(os.path.join(input_dir, ref_filename), checkstate=checkstate)
     # Moon preprocessing and detection
     ref_processed_img = registration.moon.preprocess(ref_img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
-    ref_moon_center, ref_moon_radius = registration.moon.detect_moon(ref_processed_img, num_edge_pixels, smoothing, img_callback=img_callback, checkstate=checkstate)
+    ref_moon_center, ref_moon_radius = registration.moon.detect_moon(ref_processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
     
     # Sun preprocessing
-    ref_processed_img, ref_mass_center = registration.sun.preprocess(ref_processed_img, ref_moon_center, ref_moon_radius, img_callback=img_callback, checkstate=checkstate)
+    ref_processed_img, ref_mass_center = registration.sun.preprocess(ref_processed_img, ref_moon_center, ref_moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
     
     # Save image
     ref_header = fits.update_header(ref_header, registration.moon.keyword_dict(*ref_moon_center, ref_moon_radius))
@@ -71,12 +77,12 @@ def main(input_dir,
         img, header = fits.read_fits_as_float(os.path.join(input_dir, filename), checkstate=checkstate)
         # Moon preprocessing and detection
         processed_img = registration.moon.preprocess(img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
-        moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, smoothing, img_callback=img_callback, checkstate=checkstate)
+        moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         
         # Sun preprocessing
-        processed_img, _ = registration.sun.preprocess(processed_img, moon_center, moon_radius, img_callback=img_callback, checkstate=checkstate)
+        processed_img, _ = registration.sun.preprocess(processed_img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
         # Compute transform parameters
-        theta, tx, ty = registration.sun.compute_transform(ref_processed_img, processed_img, ref_mass_center, blend_factor, img_callback=img_callback, checkstate=checkstate)
+        theta, tx, ty = registration.sun.compute_transform(ref_processed_img, processed_img, ref_mass_center, max_iter, error_overlay_strength, img_callback=img_callback, checkstate=checkstate)
         
         # Compute moon and sun transforms
         moon_tform = transform.centered_rigid_transform(ref_moon_center, theta, moon_center-ref_moon_center) # ref to anchor
@@ -98,6 +104,17 @@ def main(input_dir,
     theta_interp = scipy.interpolate.interp1d(times, thetas, kind='linear', fill_value='extrapolate')
     sun_moon_translation_interp = interpolation.LinearFitInterp(times, sun_moon_translations)
 
+    # times_new = np.linspace(times.min(), times.max(), 100)
+    # theta_new = theta_interp(times_new)
+    # sun_moon_translations_new = sun_moon_translation_interp(times_new)
+
+    # from matplotlib import pyplot as plt
+    # fig, axes = plt.subplots(2)
+    # axes[0].plot(times_new, theta_new)
+    # axes[1].plot(times_new, sun_moon_translations_new)
+    # axes[1].plot(times, sun_moon_translations, 'o')
+    # plt.show()
+
     _, _, filenames = next(os.walk(input_dir)) # not going into subfolders
     filenames = [f for f in filenames if f != ref_filename and f not in anchor_filenames] # remove ref and anchor
     for filename in filenames:
@@ -105,7 +122,7 @@ def main(input_dir,
         img, header = fits.read_fits_as_float(os.path.join(input_dir, filename), checkstate=checkstate)
         # Moon preprocessing and detection
         processed_img = registration.moon.preprocess(img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
-        moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, smoothing, img_callback=img_callback, checkstate=checkstate)
+        moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         
         # Interpolate transform parameters
         time = (datetime.strptime(header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S") - datetime.strptime(ref_header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S")).total_seconds()

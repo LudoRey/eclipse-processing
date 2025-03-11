@@ -90,6 +90,7 @@ def radial_tangential(img_polar, sigma, rho_0, rho_factor, theta_factor):
     return blurred_img_polar
 
 def tangential_filter(img, center, sigma, output_shape=[1000,1000]):
+    sigma *= output_shape[0]/360 # The unit of sigma is degree; need to scale it accordingly
     shape = img.shape
     img = transform.warp_cart_to_polar(img, center, output_shape)
     img = gaussian_filter(img, sigma, axes=(0,), border_mode='wrap') # only tangential

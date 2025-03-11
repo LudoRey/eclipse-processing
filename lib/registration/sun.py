@@ -6,7 +6,7 @@ from core.lib import display, disk, filters, transform, optim
 from core.lib.utils import cprint
 from . import registration
 
-def preprocess(img, moon_center, moon_radius, *, img_callback, checkstate):
+def preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, *, img_callback, checkstate):
     '''
     Expects a moon-preprocessed image as input.
     Returns both the image and the center of mass (later used as rotation center)
@@ -22,7 +22,7 @@ def preprocess(img, moon_center, moon_radius, *, img_callback, checkstate):
     # Preprocess image to register
     print("Applying bandpass filter...", end=" ", flush=True)
     mass_center = compute_mass_center(mask)
-    img = apply_bandpass_filter(img, mass_center)
+    img = apply_bandpass_filter(img, mass_center, sigma_high_pass_tangential)
     checkstate()
     img_callback(display.normalize(img))
     print("Done.")
@@ -58,14 +58,14 @@ def apply_bandpass_filter(img, center, sigma_high_pass_tangential=10, sigma_low_
     img /= np.max(np.abs(img))
     return img
 
-def compute_transform(ref_img, img, ref_mass_center, blend_factor, *, img_callback, checkstate):
+def compute_transform(ref_img, img, ref_mass_center, max_iter, error_overlay_strength, *, img_callback, checkstate):
     '''
     Returns the parameters of the estimated transform "ref_img -> img".
     This transform is parametrized as a rigid transform, where the center of rotation is ref_mass_center.
     '''
     # Display the two images
     checkstate()
-    img_callback(display.red_cyan_blend(ref_img, img, blend_factor=blend_factor))
+    img_callback(display.red_cyan_blend(ref_img, img, error_overlay_strength=error_overlay_strength))
 
     # Initialize transform parameters
     cprint("Initializing transform:", style='bold')
@@ -86,7 +86,7 @@ def compute_transform(ref_img, img, ref_mass_center, blend_factor, *, img_callba
         # GUI callback
         theta, tx, ty = obj.convert_x_to_params(x)
         tform = transform.centered_rigid_transform(center=ref_mass_center, rotation=theta, translation=(tx,ty))
-        img_callback(display.red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), blend_factor=blend_factor))
+        img_callback(display.red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), error_overlay_strength=error_overlay_strength))
 
         # Display info
         dtheta, dtx, dty = obj.convert_x_to_params(delta) if delta is not None else (None, None, None)
@@ -99,7 +99,7 @@ def compute_transform(ref_img, img, ref_mass_center, blend_factor, *, img_callba
     x = optim.line_search_newton(obj.convert_params_to_x(theta, tx, ty),
                                  obj.value, obj.grad, obj.hess,
                                  delta_max=delta_max, delta_min=delta_min,
-                                 max_iter=10,
+                                 max_iter=max_iter,
                                  callback=optim_callback)
     theta, tx, ty = obj.convert_x_to_params(x)
     return theta, tx, ty

@@ -22,10 +22,10 @@ def preprocess(img, num_clipped_pixels, *, checkstate, img_callback):
     print(f"Threshold : {threshold:.4f}.")
     return img
 
-def detect_moon(img, num_edge_pixels, smoothing, *, checkstate, img_callback):
+def detect_moon(img, num_edge_pixels, *, checkstate, img_callback):
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
-    edge_map = compute_edge_map(img, num_edge_pixels, smoothing)
+    edge_map = compute_edge_map(img, num_edge_pixels)
     edge_coords = np.column_stack(np.nonzero(edge_map))
     checkstate()
     print(f"Found {len(edge_coords)} edge pixels.")
@@ -49,16 +49,14 @@ def clip_brightest_pixels(img: np.ndarray, num_clipped_pixels: float):
     img = np.clip(img, 0, threshold) / threshold
     return img, threshold
 
-def compute_edge_map(img: np.ndarray, num_edge_pixels: float, smoothing: float=None):
+def compute_edge_map(img: np.ndarray, num_edge_pixels: float):
     '''
     num_edge_pixels is the number of proposed edge pixels.
     The actual number of detected pixels is lower than that due to non-maximum suppression.
     '''
     # Convert to 8 bit
     img = (img * 255).astype(np.uint8)
-    # Optional smoothing (in preparation for Sobel filtering)
-    if smoothing:
-        img = filters.gaussian_filter(img, sigma=smoothing)
+    # img = filters.gaussian_filter(img, sigma=smoothing) # Optional smoothing (in preparation for Sobel filtering)
     # Sobel filtering
     sobel_x = cv2.Sobel(img, cv2.CV_16SC1, 1, 0)
     sobel_y = cv2.Sobel(img, cv2.CV_16SC1, 0, 1)
