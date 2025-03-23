@@ -25,15 +25,18 @@ def preprocess(img, num_clipped_pixels, *, checkstate, img_callback):
 def detect_moon(img, num_edge_pixels, *, checkstate, img_callback):
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
-    edge_map = compute_edge_map(img, num_edge_pixels)
+    edge_map = compute_canny_edge_map(img, num_edge_pixels)
     edge_coords = np.column_stack(np.nonzero(edge_map))
     checkstate()
     print(f"Found {len(edge_coords)} edge pixels.")
 
     # RANSAC fitting
+    min_samples = 5
+    if len(edge_coords) <= min_samples:
+        raise RuntimeError("Not enough edge pixels to fit a circle.")
     cprint("Detecting moon:", style='bold')
     print("RANSAC circle fitting...", end=" ", flush=True)
-    (moon_y, moon_x, moon_radius), inliers_coords, outliers_coords = ransac_circle_fit(edge_coords)
+    (moon_y, moon_x, moon_radius), inliers_coords, outliers_coords = ransac_circle_fit(edge_coords, min_samples)
     checkstate()
     img_callback(make_ransac_img(img, inliers_coords, outliers_coords))
     print(f"Found {len(inliers_coords)} inliers.")
@@ -49,14 +52,13 @@ def clip_brightest_pixels(img: np.ndarray, num_clipped_pixels: float):
     img = np.clip(img, 0, threshold) / threshold
     return img, threshold
 
-def compute_edge_map(img: np.ndarray, num_edge_pixels: float):
+def compute_canny_edge_map(img: np.ndarray, num_edge_pixels: float):
     '''
     num_edge_pixels is the number of proposed edge pixels.
     The actual number of detected pixels is lower than that due to non-maximum suppression.
     '''
     # Convert to 8 bit
     img = (img * 255).astype(np.uint8)
-    # img = filters.gaussian_filter(img, sigma=smoothing) # Optional smoothing (in preparation for Sobel filtering)
     # Sobel filtering
     sobel_x = cv2.Sobel(img, cv2.CV_16SC1, 1, 0)
     sobel_y = cv2.Sobel(img, cv2.CV_16SC1, 0, 1)
@@ -68,11 +70,13 @@ def compute_edge_map(img: np.ndarray, num_edge_pixels: float):
     edge_map = cv2.Canny(sobel_x, sobel_y, threshold, threshold) == 255
     return edge_map
 
-def ransac_circle_fit(coords: np.ndarray):
-    # RANSAC parameters
-    min_samples = 5 # Number of random samples used to estimate the model parameters at each iteration
-    residual_threshold = 1 # Inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale, but shouldnt really be lower than 1...
-    max_trials = 10000 # Number of RANSAC trials
+def ransac_circle_fit(coords: np.ndarray, min_samples: int = 5, residual_threshold: float = 1, max_trials: int = 10000):
+    '''
+    Parameters:
+    -min_samples: number of random samples used to estimate the model parameters at each iteration
+    -residual_threshold: inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale, but shouldnt really be lower than 1...
+    -max_trials: number of RANSAC trials
+    '''
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore") # might throw warnings when the samples are colinear
