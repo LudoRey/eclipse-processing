@@ -37,6 +37,7 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
     '''
     x = x0
     f = func(x0)
+    alpha = np.inf # will be set to alpha_max in the first iteration
     # Callback
     callback(0, x, None, f)
     # Early termination flag
@@ -50,8 +51,8 @@ def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
         # Armijo condition : decrease must be at least proportional to t
         t = -c*np.dot(g,p) # this should be a positive value
         # 2-way line search
-        if iter == 1: # Initialize alpha; then we reuse last alpha from previous iteration
-            alpha = np.min(delta_max/np.abs(p)) # try to move as much as possible
+        alpha_max = np.min(delta_max/np.abs(p))
+        alpha = np.minimum(alpha_max, alpha) # we reuse last alpha from previous iteration, unless its too big
         f_next = func(x + alpha*p) # proposed value
         accepted = False
         if f - f_next >= alpha*t: # Armijo's condition is initially satisfied: increase the step size until it isn't
