@@ -95,18 +95,3 @@ def center_crop(img, x_c, y_c, w=512, h=512, header=None):
 
 def normalize(img):
     return (img - img.min()) / (img.max() - img.min())
-
-def red_cyan_blend(img1, img2, error_overlay_strength=0.75):
-    mean = (img1 + img2)/2
-    diff = img1 - img2
-    mean *= (1-error_overlay_strength)
-    diff *= error_overlay_strength
-
-    color_img = np.zeros((*img1.shape, 3), img1.dtype)
-    color_img[...,0] = mean + diff
-    color_img[...,1] = mean - diff
-    color_img[...,2] = mean - diff
-    
-    color_img -= color_img.min() # in-place is much faster
-    color_img /= color_img.max()
-    return color_img

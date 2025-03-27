@@ -24,7 +24,7 @@ def main(
     # Sun registration
     sigma_high_pass_tangential=4.0, 
     max_iter=10,
-    error_overlay_strength=0.75,
+    error_overlay_opacity=0.75,
     # GUI interactions
     *, 
     img_callback=lambda img: None,
@@ -67,7 +67,7 @@ def main(
         # Sun preprocessing
         processed_img, _ = registration.sun.preprocess(processed_img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
         # Compute transform parameters
-        theta, tx, ty = registration.sun.compute_transform(ref_processed_img, processed_img, ref_mass_center, max_iter, error_overlay_strength, img_callback=img_callback, checkstate=checkstate)
+        theta, tx, ty = registration.sun.compute_transform(ref_processed_img, processed_img, ref_mass_center, max_iter, error_overlay_opacity, img_callback=img_callback, checkstate=checkstate)
         
         # Compute moon and sun transforms
         moon_tform = transform.centered_rigid_transform(ref_moon_center, theta, moon_center-ref_moon_center) # ref to anchor

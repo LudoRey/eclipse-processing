@@ -58,14 +58,14 @@ def apply_bandpass_filter(img, center, sigma_high_pass_tangential=10, sigma_low_
     img /= np.max(np.abs(img))
     return img
 
-def compute_transform(ref_img, img, ref_mass_center, max_iter, error_overlay_strength, *, img_callback, checkstate):
+def compute_transform(ref_img, img, ref_mass_center, max_iter, error_overlay_opacity, *, img_callback, checkstate):
     '''
     Returns the parameters of the estimated transform "ref_img -> img".
     This transform is parametrized as a rigid transform, where the center of rotation is ref_mass_center.
     '''
     # Display the two images
     checkstate()
-    img_callback(display.red_cyan_blend(ref_img, img, error_overlay_strength=error_overlay_strength))
+    img_callback(red_cyan_blend(ref_img, img, error_overlay_opacity=error_overlay_opacity))
 
     # Initialize transform parameters
     cprint("Initializing transform:", style='bold')
@@ -86,7 +86,7 @@ def compute_transform(ref_img, img, ref_mass_center, max_iter, error_overlay_str
         # GUI callback
         theta, tx, ty = obj.convert_x_to_params(x)
         tform = transform.centered_rigid_transform(center=ref_mass_center, rotation=theta, translation=(tx,ty))
-        img_callback(display.red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), error_overlay_strength=error_overlay_strength))
+        img_callback(red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), error_overlay_opacity=error_overlay_opacity))
 
         # Display info
         dtheta, dtx, dty = obj.convert_x_to_params(delta) if delta is not None else (None, None, None)
@@ -112,3 +112,18 @@ def compute_sun_moon_translation(sun_tform: sk.transform.EuclideanTransform, moo
     # /!\ The coordinate systems have different orientations, and we want the translation in ref's coordinate system.
     # This is given by the difference of the sun/moon transforms "anchor -> ref" (because rotation is applied before translation)
     return - (sun_tform.inverse.translation - moon_tform.inverse.translation) # want ref to anchor, hence flipped sign
+
+def red_cyan_blend(img1, img2, error_overlay_opacity=0.75):
+    mean = (img1 + img2)/2
+    diff = img1 - img2
+    mean *= (1-error_overlay_opacity)
+    diff *= error_overlay_opacity
+
+    color_img = np.zeros((*img1.shape, 3), img1.dtype)
+    color_img[...,0] = mean + diff
+    color_img[...,1] = mean - diff
+    color_img[...,2] = mean - diff
+    
+    color_img -= color_img.min() # in-place is much faster
+    color_img /= color_img.max()
+    return color_img
