@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import astropy.io.fits
-from .utils import cprint
+from core.lib.utils import cprint
 
 def read_fits(filepath, verbose=True):
     if verbose:

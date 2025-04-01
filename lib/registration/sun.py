@@ -4,7 +4,7 @@ import skimage as sk
 
 from core.lib import display, disk, filters, transform, optim
 from core.lib.utils import cprint
-from . import registration
+from core.lib.registration import registration
 
 def preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, *, img_callback, checkstate):
     '''

@@ -1,5 +1,4 @@
 import numpy as np
-from skimage.transform import warp
 
 def angle_map(x_c, y_c, shape):
     x, y = np.arange(shape[1]), np.arange(shape[0])
