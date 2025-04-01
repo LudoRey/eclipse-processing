@@ -16,9 +16,9 @@ def compute_statistics(x):
     statistics["max"] = x.max()
     return statistics
 
-def auto_ht_params(statistics, clip_from_median=2.8, target_median=0.25):       
+def auto_ht_params(statistics, clip_from_median=-2.8, target_median=0.25):       
     vmax = statistics["max"]
-    vmin = statistics["median"] - clip_from_median*statistics["MAD"]
+    vmin = statistics["median"] + clip_from_median*statistics["MAD"]
     # Update median
     median = (statistics["median"] - vmin)/(vmax - vmin)
     # Compute the midpoint that yields a specified target median value
@@ -55,6 +55,10 @@ def ht_lut(x, m, vmin=None, vmax=None, bits=16):
     return x
 
 def mtf(x, m):
+    if m == 0:
+        return np.zeros_like(x)
+    if m == 1:
+        return np.ones_like(x)
     return (m-1)*x/((2*m-1)*x-m)
 
 def add_crop_inset(img, crop_center, crop_radii, scale=4, border_value=np.nan, border_thickness=2):
