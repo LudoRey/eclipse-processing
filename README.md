@@ -1,4 +1,9 @@
-# Eclipse processing guide
+# Umbra (GUI)
+To use Umbra, you simply need to download the [latest release](https://github.com/LudoRey/umbra/releases/latest). The executable may be flagged by your antivirus as a false positive. If this happens, consider adding it to your antivirus's exclusion list.
+
+# Umbra (CLI)
+
+The source code is available if you want to run the scripts without using the GUI.
 
 ## Requirements
 
