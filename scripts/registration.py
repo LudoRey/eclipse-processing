@@ -24,8 +24,8 @@ def main(
     # Sun registration
     sigma_high_pass_tangential=4.0, 
     max_iter=10,
-    error_overlay_opacity=0.75,
     # GUI interactions
+    error_overlay_opacity=0.75,
     *, 
     img_callback=lambda img: None,
     checkstate=lambda: None
@@ -137,12 +137,27 @@ if __name__ == "__main__":
     from core.lib.utils import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
-    from core.parameters import INPUT_DIR, MOON_REGISTERED_DIR, SUN_REGISTERED_DIR, IMAGE_SCALE
+    # User-specific settings (change as needed!)
+    input_dir = "path/to/your/input_dir"
+    ref_filename = "your_reference_image.fits"
+    anchor_filenames = ["your_anchor_image1.fits", "your_anchor_image2.fits"]
+    moon_registered_dir = "path/to/your/moon_registered_dir"
+    sun_registered_dir = "path/to/your/sun_registered_dir"
+    image_scale = 1.0
 
-    #REF_FILENAME = "0.01667s_2024-04-09_02h42m25s.fits"
+    # Additional settings
+    clipped_factor = 1.3
+    edge_factor = 1.0
+    sigma_high_pass_tangential = 4.0
+    max_iter = 10
 
-    
-    ref_filename = "0.25000s_2024-04-09_02h42m31s.fits"
-    anchor_filenames = ["0.25000s_2024-04-09_02h40m33s.fits"]
-
-    main(INPUT_DIR, ref_filename, anchor_filenames, MOON_REGISTERED_DIR, SUN_REGISTERED_DIR, IMAGE_SCALE)
+    main(input_dir,
+         ref_filename,
+         anchor_filenames,
+         moon_registered_dir,
+         sun_registered_dir,
+         image_scale,
+         clipped_factor,
+         edge_factor,
+         sigma_high_pass_tangential,
+         max_iter)

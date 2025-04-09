@@ -5,31 +5,23 @@
 - Python 3.7+
 - Packages in `requirements.txt`
 
-## Parameters
-
-The parameters in `parameters.py` should be set once and for all : they are not tuneable parameters.
-- Platesolved parameters. The rotation is required for the sun alignment algorithm (see below).
-    - `IMAGE_SCALE` : image scale given in arcsec/pixel.
-    - `ROTATION` : rotation angle in degrees (modulo 360) returned by a plate solving software. This is the [position angle](https://en.wikipedia.org/wiki/Position_angle) of a vector pointing upward in your images. **Warning:** if platesolving with [nova.astrometry.net](nova.astrometry.net), add 180 degrees to the result and make sure to use FITS files as input (PNG or JPEG files might result in flipped angles). To double check the result, display the RA/DEC grid and make sure that the angle matches the position angle convention. 
-- Time and location. The sun alignment algorithm is based on an ephemeris table (like Stellarium, but less fun) that requires the time and location of observation.
-    - `MEASURED_TIME`, `UTC_TIME` : The camera time may not be equal to UTC time, and even if we account for timezones, the camera time could simply be wrong. To account for this, we need to compute an offset. In order to do so, we need to consider an event which 1. was recorded by the camera and 2. occured at a known time. This event can be C2 or C3 for example, for which the times can be found [here](http://xjubier.free.fr/en/site_pages/solar_eclipses/TSE_2024_GoogleMapFull.html). Both UTC and measured timestamps should be provided in yyyy-MM-dd HH:mm:ss format.
-    - `LATITUDE`, `LONGITUDE` : latitude and longitude in decimal degrees. These can also be found on Xavier Jubier's interactive map.
-- Miscellaneous.
-    - `MOON_RADIUS_DEGREE` : Radius of the moon in degrees (specific to a certain TSE). This value can be found in Stellarium or derived from your own images (Stellarium tends to overestimate it). For the 2024 TSE, 0.278 is a good value.
-    - `GROUP_KEYWORDS` : List of FITS keywords corresponding to settings that vary across the exposures (typically, "EXPTIME" and optionally "ISOSPEED" or "GAIN" if the gain was changed). These keywords will automatically determine groups of images to be stacked together. The keywords should be listed by order of importance : groups will be sorted by brightness based on the first keyword in priority, then on the second, etc... The order is important for the HDR algorithm.
-- I/O.
-    - `INPUT_DIR` : Input directory for the registration script (`main_registration.py`) containing the calibrated (and debayered) images of the TSE in 16-bit unsigned integer FITS format (.fits extension, can use PixInsight's BatchFormatConversion script). **Do not** sort your images into subfolders based on exposure time or gain. The scripts will automatically detect the different settings based on `GROUP_KEYWORDS`.
-    - `MOON_REGISTERED_DIR`, `SUN_REGISTERED_DIR`, `MOON_STACKS_DIR`, `SUN_STACKS_DIR`, `MOON_STACKS_DIR`, `SUN_STACKS_DIR`, `MOON_HDR_DIR`, `SUN_HDR_DIR`, `MERGED_HDR_DIR` : Output (and input) directories for the scripts.
-
-Each script contains its own set of parameters, listed at the top of the file. More details are given in the sections below.
-
 ## Registration
 
-The script `main_registration.py` simultaneously performs a moon-based and a sun-based registration of the input images located in `INPUT_DIR`. The output directories are defined by `MOON_REGISTERED_DIR` and `SUN_REGISTERED_DIR`.
+The script `scripts/registration.py` simultaneously performs a moon-based and a sun-based registration of the input images.
 
-Extra parameters (defined at the bottom of the script) :
-- `REF_FILENAME` : The registration is based on a reference image located at <`INPUT_DIR`>/<`REF_FILENAME`>.
+Parameters (defined at the bottom of the script) :
+- `input_dir` : Input folder containing the FITS files.
+- `ref_filename` : All images will be both moon-aligned and sun-aligned to this <b>reference image</b>. Ideally, the reference image should be a long exposure with the inner solar corona clipped. It should have the same camera settings as the anchor images.
+- `anchor_filenames` : The <b>anchor images</b> are the only images that will be explicitly sun-aligned to the reference using the sun registration algorithm. The other images will use timestamp-based interpolation to compute the relative translation of the sun (with respect to the moon), as well as the rotation. One or two anchor images are generally sufficient. They should have the same camera settings as the reference image, and be spaced as far apart in time as possible from it.
+- `moon_registered_dir` : Output folder for the moon-registered images.
+- `sun_registered_dir` : Output folder for the sun-registered images.
+- `image_scale` : Resolution in arcseconds/pixel.
+- `clipped_factor` : In order to easily detect the moon's border, the bright pixels surrounding the moon are clipped first, if they are not already. This parameter determines <b>the number of clipped pixels</b>. Increase to make the moon's border more defined. Decrease to prevent noise amplification (which may interfere with the edge detection algorithm). The number of clipped pixels is computed as the area of an annulus around the moon, where the outer radius is given by the moon radius, multiplied by the clipped factor.
+- `edge_factor` : The moon detection algorithm works by fitting a circle to the edge of the moon. This parameter determines <b>the number of detected edge pixels</b>, displayed in red and green. Increase if a large portion of the moon's border is not detected. Decrease if other parts of the image are incorrectly detected. The number of edge pixels is given by the circonference of the moon, multiplied by the edge factor. Some edge pixels are then discarded, due to non-maximum suppression.
+- `sigma_highpass_tangential` : The sun registration algorithm works on filtered images that enhance the coronal details. This parameter defines <b>the standard deviation of the tangential high-pass filter</b>, given in degrees. A lower value emphasizes finer structures, while a higher value is more robust to noise.
+- `max_iter` : Maximum number of iterations for the optimization loop. The loop will terminate early if the parameters of the alignment transform converge.
 
+<!-- 
 ## Integration
 
 The scripts `main_sun_integration.py` and `main_moon_integration.py` integrate the previously registered images located in `MOON_REGISTERED_DIR` and `SUN_REGISTERED_DIR`. A stack is generated for each group (see `GROUP_KEYWORDS`). The output directories are defined by `MOON_STACKS_DIR` and `SUN_STACKS_DIR`.
@@ -57,4 +49,4 @@ The script `main_merge_sun_moon.py` combines the previously generated HDR images
 
 The script uses a moon mask (once again!), but this time it is not approximated by a disk but rather directly estimated from the image. 
 - `MOON_THRESHOLD` : value in [0,1]. Only moon pixels below this value will be considered for the initial moon mask. This value should be increased to contain more of the moon edge, but it should not be too high (to avoid artifacts). 
-- `SIGMA` : value above 0. Roughly corresponds to "outwards-only" Gaussian smoothing (but there is more to it, more explanations will come later).
+- `SIGMA` : value above 0. Roughly corresponds to "outwards-only" Gaussian smoothing (but there is more to it, more explanations will come later). -->
